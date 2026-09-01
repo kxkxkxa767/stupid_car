@@ -1,0 +1,195 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CMake: 配置 macOS Release",
+      "type": "shell",
+      "command": "cmake --preset mac-release",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "CMake: 编译 macOS Release",
+      "type": "shell",
+      "command": "cmake --build --preset mac-release --parallel",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "C++: 交叉编译树莓派 ARM64 运动控制",
+      "type": "shell",
+      "command": "./scripts/build_pi_motion_cross.sh",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PATH": "/opt/homebrew/bin:${env:PATH}"
+        }
+      },
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "C++: 交叉编译树莓派 ARM64 摄像头云台",
+      "type": "shell",
+      "command": "./scripts/build_pi_gimbal_cross.sh",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PATH": "/opt/homebrew/bin:${env:PATH}"
+        }
+      },
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "C++: 交叉编译树莓派 ARM64 视觉程序",
+      "type": "shell",
+      "command": "./scripts/build_pi_vision_cross.sh",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PATH": "/opt/homebrew/bin:${env:PATH}"
+        }
+      },
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "C++: 交叉编译树莓派摄像头运动安全验证器",
+      "type": "shell",
+      "command": "./scripts/build_pi_camera_motion_validation.sh",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PATH": "/opt/homebrew/bin:${env:PATH}"
+        }
+      },
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "构建: Mac + 树莓派 ARM64",
+      "dependsOn": [
+        "CMake: 编译 macOS Release",
+        "C++: 交叉编译树莓派 ARM64 运动控制",
+        "C++: 交叉编译树莓派 ARM64 摄像头云台",
+        "C++: 交叉编译树莓派 ARM64 视觉程序",
+        "C++: 交叉编译树莓派摄像头运动安全验证器"
+      ],
+      "dependsOrder": "parallel",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "CMake: 配置并编译 macOS Debug",
+      "type": "shell",
+      "command": "cmake --preset mac-debug && cmake --build --preset mac-debug --parallel",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "CTest: 运行自检",
+      "type": "shell",
+      "command": "ctest --test-dir build/mac-release --output-on-failure",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "CMake: 编译 macOS Release",
+      "problemMatcher": []
+    },
+    {
+      "label": "运行：Mac 摄像头应用",
+      "type": "shell",
+      "command": "open \"${workspaceFolder}/build/mac-release/XT-NetRC Vision.app\"",
+      "dependsOn": "CMake: 编译 macOS Release",
+      "problemMatcher": []
+    },
+    {
+      "label": "Python: 安装环境",
+      "type": "shell",
+      "command": "./scripts/setup_python_macos.sh",
+      "problemMatcher": []
+    },
+    {
+      "label": "Python: 运行自检",
+      "type": "shell",
+      "command": ".venv/bin/python -m unittest discover -s OpenCV/python/tests -v",
+      "dependsOn": "Python: 安装环境",
+      "problemMatcher": []
+    },
+    {
+      "label": "Python: 启动摄像头 0",
+      "type": "shell",
+      "command": "PYTHONPATH=OpenCV/python .venv/bin/python -m xtnetrc_vision --camera 0",
+      "dependsOn": "Python: 安装环境",
+      "problemMatcher": []
+    },
+    {
+      "label": "C++: 编译运动控制",
+      "type": "shell",
+      "command": "cmake -S main/motion_control -B build/motion-control -DCMAKE_BUILD_TYPE=Release && cmake --build build/motion-control --parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "C++: 编译摄像头云台",
+      "type": "shell",
+      "command": "cmake -S main/camera_gimbal -B build/camera-gimbal -DCMAKE_BUILD_TYPE=Release && cmake --build build/camera-gimbal --parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "C++: 摄像头云台自检",
+      "type": "shell",
+      "command": "ctest --test-dir build/camera-gimbal --output-on-failure",
+      "dependsOn": "C++: 编译摄像头云台",
+      "problemMatcher": []
+    },
+    {
+      "label": "C++: 运动控制自检",
+      "type": "shell",
+      "command": "ctest --test-dir build/motion-control --output-on-failure",
+      "dependsOn": "C++: 编译运动控制",
+      "problemMatcher": []
+    },
+    {
+      "label": "C++: 运动控制演示",
+      "type": "shell",
+      "command": "./build/motion-control/xtnetrc_motion_demo --config main/motion_control/config/motion_default.json left",
+      "dependsOn": "C++: 编译运动控制",
+      "problemMatcher": []
+    },
+    {
+      "label": "树莓派: 合并部署到 5G@pi.local",
+      "type": "shell",
+      "command": "./scripts/deploy_to_raspberry_pi.sh 5G@pi.local /home/5G/5G",
+      "problemMatcher": []
+    },
+    {
+      "label": "树莓派: 上传运动控制到独立测试目录",
+      "type": "shell",
+      "command": "./scripts/deploy_pi_motion_staging.sh 5G@192.168.124.5",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "树莓派: 上传交叉编译视觉程序到独立测试目录",
+      "type": "shell",
+      "command": "./scripts/deploy_pi_vision_staging.sh 5G@192.168.124.5",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

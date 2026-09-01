@@ -1,0 +1,75 @@
+{
+  "model": "XT-NetRC",
+  "batch_year": 2023,
+  "units": "SI",
+  "geometry": {
+    "wheelbase_m": 0.23861,
+    "wheel_outer_diameter_unloaded_m": 0.11063,
+    "wheel_geometric_radius_unloaded_m": 0.055315,
+    "wheel_geometric_circumference_unloaded_m": 0.34755,
+    "wheel_width_m": 0.04952,
+    "body_top_cover_width_m": 0.16914,
+    "underside_contact_span_m": 0.30528
+  },
+  "unknown": {
+    "loaded_rolling_circumference_m": null,
+    "effective_rolling_radius_m": null,
+    "front_track_width_m": null,
+    "rear_track_width_m": null,
+    "vehicle_mass_kg": null,
+    "steering_angle_calibration": null,
+    "encoder_counts_per_revolution": null
+  },
+  "measurement_evidence": {
+    "wheel_width": "1787833197333.jpg",
+    "wheel_outer_diameter": "1787833197343.jpg",
+    "wheelbase": "1787833197351.jpg",
+    "body_top_cover_width": "1787833197299.jpg",
+    "underside_contact_span": "1787833197317.jpg"
+  },
+  "camera_calibration": {
+    "date": "2026-08-31",
+    "resolution": [640, 480],
+    "intrinsics_file": "../camera_calibration/output/camera_intrinsics.json",
+    "ground_projection_file": "../camera_calibration/output/ground_projection.json",
+    "intrinsics_frames_used": 15,
+    "rms_reprojection_error_px": 0.2345,
+    "max_view_rms_error_px": 0.3666,
+    "ground_projection_model": "raw_pixel_homography",
+    "ground_pose_recalibrated_after_camera_fix": "2026-08-31",
+    "ground_reference_image": "../camera_calibration/captures/ground_reference_after_camera_fix_640x480.jpg",
+    "previous_ground_projection_backup": "../camera_calibration/output/ground_projection_before_camera_fix_2026-08-31.json",
+    "ground_reference_points_m": [
+      [0.70, 0.25],
+      [0.70, -0.25],
+      [1.20, 0.25],
+      [1.20, -0.25]
+    ],
+    "valid_only_while_camera_pose_and_resolution_are_unchanged": true
+  },
+  "camera_gimbal": {
+    "date_tested": "2026-08-31",
+    "pan_gpio_bcm": 22,
+    "tilt_gpio_bcm": 23,
+    "pwm_frequency_hz": 50,
+    "pwm_range": 1000,
+    "pan_center_pwm": 72,
+    "pan_electrical_tested_pwm": [25, 125],
+    "pan_software_safe_pwm": [28, 122],
+    "tilt_center_pwm": 73,
+    "tilt_mechanical_tested_pwm": [55, 125],
+    "tilt_software_safe_pwm": [58, 122],
+    "direction": {
+      "pan_decreasing": "vehicle_right",
+      "pan_increasing": "vehicle_left",
+      "tilt_decreasing": "down",
+      "tilt_increasing": "up"
+    },
+    "warning": "Tilt showed almost no image movement from PWM 55 to 50; values below 55 can stall the servo."
+  },
+  "notes": [
+    "Wheel diameter and circumference are unloaded geometric values.",
+    "Measure loaded rolling circumference before using wheel odometry.",
+    "The 305.28 mm span follows the photographed caliper contact points and is not the published overall vehicle length."
+  ]
+}

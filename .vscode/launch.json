@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "调试：摄像头 0",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mac-debug/XT-NetRC Vision.app/Contents/MacOS/XT-NetRC Vision",
+      "args": ["--camera", "0"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "lldb",
+      "preLaunchTask": "CMake: 配置并编译 macOS Debug"
+    }
+  ]
+}

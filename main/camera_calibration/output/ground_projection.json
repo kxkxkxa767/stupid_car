@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "image_width": 640,
+  "image_height": 480,
+  "camera_matrix": [
+    [
+      586.3866065313451,
+      0.0,
+      330.1935140368864
+    ],
+    [
+      0.0,
+      583.6218910133103,
+      218.13849955624653
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "dist_coeffs": [
+    -0.20702339188288918,
+    -0.5216404674735862,
+    0.0003124457013911737,
+    0.00014539602002871597,
+    -1.1731453221554295
+  ],
+  "rms_reprojection_error_px": 0.23449525456503412,
+  "mean_per_view_error_px": 0.04670589615901311,
+  "max_view_rms_error_px": 0.36661847739539044,
+  "intrinsic_standard_deviation": [
+    3.899293543487674,
+    3.8415939823830443,
+    1.3048758076365898,
+    1.8724135201822314,
+    0.03405173942655698,
+    0.6038217601329887,
+    0.0006918009533419788,
+    0.0006582677878803873,
+    3.172755118502799,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "frames_used": 15,
+  "charuco": {
+    "dictionary": "DICT_5X5_100",
+    "squares_x": 5,
+    "squares_y": 7,
+    "square_length_m": 0.035,
+    "marker_length_m": 0.025
+  },
+  "source_images": [
+    "charuco_1788153488_10.jpg",
+    "charuco_1788153488_11.jpg",
+    "charuco_1788153488_12.jpg",
+    "charuco_1788153488_13.jpg",
+    "charuco_1788153488_14.jpg",
+    "charuco_1788153488_15.jpg",
+    "charuco_1788153488_16.jpg",
+    "charuco_1788153488_17.jpg",
+    "charuco_1788153488_18.jpg",
+    "charuco_1788153488_4.jpg",
+    "charuco_1788153488_5.jpg",
+    "charuco_1788153488_6.jpg",
+    "charuco_1788153488_7.jpg",
+    "charuco_1788153488_8.jpg",
+    "charuco_1788153488_9.jpg"
+  ],
+  "detection_methods": [
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback",
+    "inverted_chessboard_fallback"
+  ],
+  "ground_calibration_version": 1,
+  "coordinate_system": {
+    "x": "forward_m",
+    "y": "left_m"
+  },
+  "image_to_vehicle_ground_homography": [
+    [
+      -0.00014053001044396255,
+      -0.0015049776260365382,
+      -1.026370218012129
+    ],
+    [
+      0.0020926527338770875,
+      0.0005985985791377704,
+      -0.8573842078849148
+    ],
+    [
+      0.00023630024057344942,
+      -0.010155908879620885,
+      1.0
+    ]
+  ],
+  "ground_reference_image": "main/camera_calibration/captures/ground_reference_after_camera_fix_640x480.jpg",
+  "image_points_undistorted_px": [
+    [
+      63.881,
+      311.539
+    ],
+    [
+      589.071,
+      340.21
+    ],
+    [
+      210.111,
+      216.762
+    ],
+    [
+      487.686,
+      227.782
+    ]
+  ],
+  "vehicle_points_m": [
+    [
+      0.7,
+      0.25
+    ],
+    [
+      0.7,
+      -0.25
+    ],
+    [
+      1.2,
+      0.25
+    ],
+    [
+      1.2,
+      -0.25
+    ]
+  ],
+  "calibration_max_error_m": 6.864249770583202e-08,
+  "projection_model": "raw_pixel_homography",
+  "projection_dist_coeffs": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ]
+}

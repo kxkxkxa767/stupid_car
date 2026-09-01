@@ -1,0 +1,850 @@
+XT-NetRC Mac 与树莓派常用命令说明
+更新日期：2026-08-29
+
+说明：
+1. 命令分为“Mac 上执行”和“树莓派上执行”两部分，不要混用。
+2. <车的IP>、<无线网名称>、<SD卡设备号> 是占位符，需替换成实际值，不要连尖括号一起输入。
+3. 不要把 Mac 开机密码、树莓派密码或 Wi-Fi 密码写入本文件。
+4. 实车 SD 卡已确认：树莓派用户名是 5G，主机名是 pi，系统中没有 pi 用户。
+5. 127.0.1.1 和 ::ffff:127.0.1.1 都是树莓派自己的回环地址，不是 Mac 可用的连接地址。
+6. 电机和舵机实测前必须让车轮离地，准备好物理断电，并保持人和物体远离轮胎。
+
+
+============================================================
+一、在 Mac 上执行的命令
+============================================================
+
+1. 进入工程根目录
+
+cd /Users/yuhaojin/Documents/5G_opencv
+
+用途：后面的编译、测试和运行命令默认都从这个目录开始。
+
+
+2. 用 VS Code 打开整个工程
+
+code /Users/yuhaojin/Documents/5G_opencv
+
+用途：在 VS Code 中编辑 Python、C++、CMake 和配置文件。
+如果提示 code: command not found，在 VS Code 中按 Cmd+Shift+P，执行“Shell Command: Install 'code' command in PATH”。
+
+
+3. 初次配置 Mac 的 Python 视觉环境
+
+cd /Users/yuhaojin/Documents/5G_opencv
+./scripts/setup_python_macos.sh
+
+用途：创建工程自己的 .venv 虚拟环境，安装 Python、NumPy 和 OpenCV，不影响 Mac 系统 Python。
+
+
+4. 查看 Mac Python 环境中的 OpenCV 版本
+
+cd /Users/yuhaojin/Documents/5G_opencv
+.venv/bin/python -c 'import cv2; print(cv2.__version__)'
+
+用途：确认 Python 实际导入了哪个 OpenCV。当前工程的 Python 环境预期为 OpenCV 5.0.0.93。
+
+
+5. 运行 Python 视觉自检
+
+cd /Users/yuhaojin/Documents/5G_opencv
+.venv/bin/python -m unittest discover -s OpenCV/python/tests -v
+
+用途：不接车、不接 GPIO，验证 Python 视觉算法基本功能。
+
+
+6. 用 Mac 摄像头运行 Python 视觉
+
+cd /Users/yuhaojin/Documents/5G_opencv
+PYTHONPATH=OpenCV/python .venv/bin/python -m xtnetrc_vision --camera 0
+
+用途：打开编号 0 的摄像头进行视觉测试。
+退出：按 Q、Esc 或 Ctrl+C。
+如果没有画面，检查“系统设置 -> 隐私与安全性 -> 摄像头”中是否允许终端或 VS Code。
+
+
+7. 用视频文件运行 Python 视觉
+
+cd /Users/yuhaojin/Documents/5G_opencv
+PYTHONPATH=OpenCV/python .venv/bin/python -m xtnetrc_vision --video "/视频的绝对路径/测试.mp4"
+
+用途：不需要摄像头和实车，用录制视频调试识别算法。路径含空格时必须保留双引号。
+
+
+8. 编译 Mac C++ 视觉工程
+
+cd /Users/yuhaojin/Documents/5G_opencv
+cmake --preset mac-release
+cmake --build --preset mac-release --parallel
+
+用途：用工程内的 OpenCV 4.14 编译 C++ 视觉程序。
+
+
+9. 运行 Mac C++ 测试
+
+cd /Users/yuhaojin/Documents/5G_opencv
+ctest --test-dir build/mac-release --output-on-failure
+
+用途：执行 C++ 自动测试；失败时显示具体错误。
+
+
+10. 打开带 macOS 摄像头权限的 C++ 应用
+
+cd /Users/yuhaojin/Documents/5G_opencv
+open "./build/mac-release/XT-NetRC Vision.app"
+
+用途：通过 .app 打开 C++ 摄像头程序，比裸命令行程序更容易获得 macOS 摄像头权限。
+
+
+11. 单独编译和测试 C++ 运动控制模块
+
+cd /Users/yuhaojin/Documents/5G_opencv
+cmake -S main/motion_control -B build/motion-control -DCMAKE_BUILD_TYPE=Release
+cmake --build build/motion-control --parallel
+ctest --test-dir build/motion-control --output-on-failure
+
+用途：编译和测试 Pure Pursuit 路径跟踪模块。该模块当前不输出 GPIO/PWM，在 Mac 上运行不会让车轮转动。
+
+
+12. 运行 Pure Pursuit 离线演示
+
+cd /Users/yuhaojin/Documents/5G_opencv
+./build/motion-control/xtnetrc_motion_demo \
+  --config main/motion_control/config/motion_default.json left
+./build/motion-control/xtnetrc_motion_demo \
+  --config main/motion_control/config/motion_default.json right
+
+用途：分别查看左弯和右弯的目标转角、曲率和速度输出。
+
+
+13. 测试树莓派是否能通过主机名访问
+
+ping -c 3 pi.local
+
+用途：检查 Mac 和树莓派是否在同一局域网，以及 mDNS 主机名解析是否正常。
+如果返回 unknown host，改用后面的实际 IP 命令。
+
+
+14. 查看 pi.local 对应的 IPv4 地址
+
+dns-sd -G v4 pi.local
+
+用途：通过 macOS 自带的 Bonjour 查找树莓派 IP。
+该命令会持续运行，看到结果后按 Ctrl+C 退出。
+
+
+15. 查看 Mac 已知道的局域网设备
+
+arp -a
+
+用途：在主机名不能解析时，查看 Mac 的 ARP 表，辅助寻找树莓派 IP。
+
+
+16. 检查树莓派 SSH 端口
+
+nc -vz pi.local 22
+
+或：
+
+nc -vz <车的IP> 22
+
+用途：不登录，只检查 22 端口是否可达。出现 succeeded 说明 SSH 网络已通。
+
+
+17. 从 Mac SSH 登录树莓派
+
+ssh 5G@pi.local
+
+或：
+
+ssh 5G@<车的IP>
+
+用途：远程进入树莓派终端。正确用户名是 5G，不是 pi。
+首次连接询问 yes/no 时，确认目标是自己的车后输入 yes。
+本次已验证可用的示例：ssh 5G@192.168.124.5
+注意：这个 IP 可能被路由器重新分配，连不上时先在树莓派执行 hostname -I。
+
+
+18. 树莓派重装系统后出现 SSH 主机密钥冲突
+
+ssh-keygen -R pi.local
+ssh-keygen -R <车的IP>
+
+用途：只在确认这辆车重装过系统、SSH 提示 REMOTE HOST IDENTIFICATION HAS CHANGED 时，删除 Mac 中的旧主机指纹。
+不确定设备身份时不要执行。
+
+
+19. 把新工程按原 SD 卡结构合并到树莓派
+
+cd /Users/yuhaojin/Documents/5G_opencv
+./scripts/deploy_to_raspberry_pi.sh 5G@pi.local /home/5G/5G
+
+用途：通过 SSH 把 OpenCV、PWM、main、imu、tflite、voice 和 picsave 合并到原车 /home/5G/5G/ 同名目录。
+脚本不使用 --delete，不会删除原车 studyroad 等旧程序；新 C++ 程序位于 main/vision 和 main/motion_control。
+会排除 Mac 专用的 .venv、build、third_party、local 和参考资料。
+
+
+20. 从树莓派下载一个文件到 Mac
+
+scp 5G@pi.local:/home/5G/文件名 /Users/yuhaojin/Downloads/
+
+用途：把树莓派的日志、图片或测试结果下载到 Mac。
+
+
+21. 检查 Mac 当前插入的外置磁盘和 SD 卡
+
+diskutil list external physical
+
+用途：找到 SD 卡的实际设备号，例如 disk5。
+安全：每次重新插卡都要重新查看，设备号可能变化，不要猜。
+
+
+22. 查看某张 SD 卡的详细信息
+
+diskutil info /dev/<SD卡设备号>
+
+示例（仅示意，不要照抄设备号）：
+
+diskutil info /dev/disk5
+
+用途：核对容量、介质类型和分区，防止操作错磁盘。
+
+
+23. 安全弹出 SD 卡
+
+diskutil eject /dev/<SD卡设备号>
+
+用途：卸载所有分区并安全弹出。看到成功信息后再拔卡。
+
+
+24. 为只读检查 ext4 分区临时开放设备读权限
+
+sudo chmod a+r /dev/<SD卡Linux分区> /dev/r<SD卡Linux分区>
+
+示例（设备号必须先用 diskutil 核对）：
+
+sudo chmod a+r /dev/disk5s2 /dev/rdisk5s2
+
+用途：macOS 不能原生挂载 Linux ext4；这条命令只给当前设备节点增加读权限，便于 debugfs 只读检查。
+安全：不要使用 debugfs -w，不要对未确认的磁盘操作。拔卡或重启后该权限通常会失效。
+
+
+25. 只读查看 ext4 根目录
+
+/opt/homebrew/opt/e2fsprogs/sbin/debugfs -R 'ls -l /' /dev/r<SD卡Linux分区>
+
+示例：
+
+/opt/homebrew/opt/e2fsprogs/sbin/debugfs -R 'ls -l /home/5G' /dev/rdisk5s2
+
+用途：在 Mac 上只读检查树莓派 ext4 文件系统。
+安全：不要添加 -w 参数；不要读取 /etc/shadow、SSH 私钥、Wi-Fi 密码或 Shell 历史。
+
+
+26. 如果 Mac 没有 debugfs，安装只读检查工具
+
+brew install e2fsprogs
+
+用途：安装 Linux ext2/ext3/ext4 文件系统工具。当前 Mac 已安装过，一般不需重复执行。
+
+
+============================================================
+二、在树莓派上执行的命令
+============================================================
+
+1. 确认当前用户和主机名
+
+whoami
+hostname
+
+用途：正常情况下 whoami 应显示 5G，hostname 应显示 pi。
+
+
+2. 查看树莓派当前 IP 地址
+
+hostname -I
+
+用途：显示树莓派在局域网中的 IP。常见形式为 192.168.x.x 或 10.x.x.x。
+不要把 127.0.1.1 当作这个 IP。
+
+
+3. 简洁查看所有网卡状态和 IP
+
+ip -br address
+
+用途：查看 wlan0（Wi-Fi）、eth0（网线）和其他网卡是否 UP，以及各自的 IP。
+
+
+4. 查看 NetworkManager 设备状态
+
+nmcli device status
+
+用途：判断 Wi-Fi 是 connected、disconnected 还是 unavailable。实车当前使用 NetworkManager 管理网络。
+
+
+5. 扫描附近 Wi-Fi / SSID（联网前最常用）
+
+只想立即刷新并列出附近 SSID，输入：
+
+nmcli -f IN-USE,SSID,SIGNAL,SECURITY device wifi list --rescan yes
+
+如果上面没有结果，按下面三步重新打开并扫描 Wi-Fi：
+
+sudo nmcli radio wifi on
+sudo nmcli device wifi rescan
+nmcli -f IN-USE,SSID,SIGNAL,SECURITY device wifi list
+
+用途：确认树莓派能看到路由器、手机热点或 Mac 热点。SSID 就是 Wi-Fi 名称。
+注意：隐藏 SSID 可能不显示名称；普通 Wi-Fi 应显示信号强度和安全类型。
+
+
+6. 安全连接一个新 Wi-Fi，尽量不把密码留在 Shell 历史中
+
+read -s -p "Wi-Fi 密码: " WIFI_PASS; echo
+sudo nmcli device wifi connect "<无线网名称>" password "$WIFI_PASS"
+unset WIFI_PASS
+
+用途：让树莓派连接路由器或 Mac 创建的 Wi-Fi 热点。第一条命令输入密码时不会在屏幕上显示字符。
+成功后再执行 hostname -I 查看 IP。
+实车本次联网后已经显示 192.168.124.5，但 DHCP 分配的 IP 以后可能变化，每次以 hostname -I 的实际输出为准。
+
+
+7. 查看当前正在使用的网络连接
+
+nmcli -t -f NAME,TYPE,DEVICE connection show --active
+
+用途：确认树莓派当前连上了哪个 Wi-Fi 或有线网络。
+
+
+8. 测试树莓派能否访问 Mac
+
+ping -c 3 <Mac的IP>
+
+用途：验证车和 Mac 是否真正处于互通的同一局域网。
+
+
+9. 查看 SSH 服务状态
+
+sudo systemctl status ssh --no-pager
+
+用途：查看 SSH 是否 active (running)。实车 SD 卡中 SSH 已启用。
+
+
+10. 启动 SSH 并设为开机自启
+
+sudo systemctl enable --now ssh
+
+用途：只在 SSH 未运行时执行，便于 Mac 以后远程登录。
+
+
+11. 查看树莓派 C++ OpenCV 版本
+
+pkg-config --modversion opencv4
+
+用途：查看 CMake/g++ 默认会找到的 OpenCV 版本。实车卡的 /usr/local 中已确认为 4.13.0。
+
+
+12. 查看树莓派 Python OpenCV 版本
+
+python3 -c 'import cv2; print(cv2.__version__)'
+
+用途：确认 Python 能否导入 cv2，以及导入的版本。
+
+
+13. 查看 C++ 编译工具版本
+
+g++ --version
+cmake --version
+
+用途：确认编译器和 CMake 已安装。
+
+
+14. 如果树莓派缺少基本编译环境，安装系统包
+
+sudo apt update
+sudo apt install build-essential cmake pkg-config libopencv-dev python3-opencv python3-numpy
+
+用途：安装 g++、CMake、pkg-config 和系统 OpenCV。
+注意：实车已有自行编译的 OpenCV 4.13，不要为了“版本更新”盲目重装。先执行版本检查，确实缺少再安装。
+
+
+15. 查看 USB 设备和摄像头节点
+
+lsusb
+ls -l /dev/video*
+
+用途：确认 USB 摄像头是否被系统识别，以及它是 /dev/video0、video1 还是其他编号。
+
+
+16. 查看摄像头支持的分辨率和帧率
+
+v4l2-ctl --list-devices
+v4l2-ctl --device=/dev/video0 --list-formats-ext
+
+用途：查看 V4L2 摄像头信息。原车最新程序要求 640x480、30 FPS、MJPG。
+如果提示 v4l2-ctl 不存在，执行：sudo apt install v4l-utils
+
+
+17. 快速测试 Raspberry Pi CSI 摄像头
+
+rpicam-hello -t 5000
+
+用途：在有显示器的情况下预览 CSI 摄像头 5 秒。
+如果实车用的是 USB 摄像头，以 v4l2-ctl 和 OpenCV VideoCapture 测试为主。
+
+
+18. 检查 pigpio 守护进程
+
+sudo systemctl status pigpiod --no-pager
+
+用途：Python 原车 PWM 脚本通过 pigpio.pi() 连接 pigpiod，需要该服务运行。
+注意：原车 C++ 程序直接调用 gpioInitialise()，与 Python 的连接方式不完全一样。
+
+
+19. 启动 pigpiod
+
+sudo systemctl enable --now pigpiod
+
+用途：让 Python/pigpio 客户端可以操作 GPIO。
+安全：启动服务本身不会必然转动电机，但之后运行的 PWM 程序可能会；车轮应保持离地。
+
+
+20. 进入原车结构中的新 C++ 视觉子工程
+
+cd /home/5G/5G/main/vision
+
+用途：进入新视觉子工程。它和原车 main/studyroad 同级，但不修改 studyroad。
+
+
+21. 在树莓派上编译新 C++ 视觉工程
+
+cd /home/5G/5G/main/vision
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+
+用途：使用树莓派实际的 OpenCV 编译新视觉程序。
+
+
+22. 在树莓派上测试新 C++ 视觉工程
+
+cd /home/5G/5G/main/vision
+ctest --test-dir build --output-on-failure
+
+用途：先运行不接电机的自动测试，确认编译结果正常。
+
+
+23. 在树莓派上运行新视觉程序
+
+cd /home/5G/5G/main/vision
+./build/xt_netrc_vision --camera 0
+
+用途：使用 /dev/video0 做车道识别。当前新工程默认只输出模拟转向结果，不直接发送电机 PWM。
+
+
+24. 在树莓派上编译新的 Pure Pursuit 运动控制模块
+
+cd /home/5G/5G/main/motion_control
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+
+用途：在树莓派架构上编译并测试独立运动控制核心，仍然不输出实车 PWM。
+
+
+25. 查看原车最新集成程序，但不运行
+
+less /home/5G/5G/main/studyroad/src/main.cpp
+
+用途：只读查看原车循迹、分割、避障和电机控制代码。
+less 中按 / 可搜索，按 q 退出。
+
+
+26. 查看原车 GPIO/PWM 关键代码位置
+
+grep -nE 'Steer_Center|Steer_min|Steer_max|gpioPWM|gpioSetPWMfrequency|motorSet' /home/5G/5G/main/studyroad/src/main.cpp
+
+用途：快速查看原车舵机中值、限幅、GPIO 和电调命令。
+安全：只用于参考，不要在车轮着地时直接运行该原程序。卡内曾出现 70、84、99 三种不同舵机中值，必须先标定。
+
+
+27. 查看原厂上位机/远程驾驶服务
+
+systemctl list-unit-files | grep -Ei 'network-rc|networkrc|frp|mjpg'
+systemctl list-units --type=service | grep -Ei 'network-rc|networkrc|frp|mjpg'
+
+用途：查看系统中是否存在并正在运行原厂网页上位机、FRP 或 MJPG 视频服务。
+注意：只查看，不会停止服务。自动驾驶与原厂上位机可能争用摄像头或 PWM，后续要明确哪一个程序拥有控制权。
+
+
+28. 查看树莓派资源占用
+
+free -h
+df -h
+top
+
+用途：free -h 查内存，df -h 查磁盘，top 查 CPU/进程。top 中按 q 退出。
+
+
+29. 查看温度和降频状态
+
+vcgencmd measure_temp
+vcgencmd get_throttled
+
+用途：长时间运行 OpenCV/TFLite 时检查树莓派温度、欠压和降频。
+get_throttled=0x0 表示没有记录到欠压/降频状态。
+
+
+30. 安全关机
+
+sudo shutdown -h now
+
+用途：在拔树莓派电源前正常停止系统，减少 SD 卡文件系统损坏风险。
+看到系统完全停止、存储指示灯不再闪烁后再断电。
+
+
+============================================================
+三、在网页中查看摄像头（实车已验证）
+============================================================
+
+1. 先从 Mac SSH 登录树莓派
+
+ssh 5G@192.168.124.5
+
+用途：进入树莓派终端，然后启动摄像头网页服务。
+如果连不上，先在树莓派本机执行 hostname -I，用实际 IP 替换 192.168.124.5。
+
+
+2. 在树莓派上临时启动 MJPG 网页视频
+
+/usr/local/bin/mjpg_streamer -i "/usr/local/lib/mjpg-streamer/input_uvc.so -d /dev/video0 -r 1280x720 -f 30" -o "/usr/local/lib/mjpg-streamer/output_http.so -w /usr/local/share/mjpg-streamer/www -p 8080"
+
+用途：将 /dev/video0 的画面以 1280x720、30 FPS 发布到树莓派的 8080 端口。
+运行后不要关闭该 SSH 终端；要停止视频服务时按 Ctrl+C。
+提示的 Pan、Tilt、Focus 等 Inappropriate ioctl 警告只表示摄像头不支持那些 UVC 控制，不影响视频画面。
+如果 /dev/video0 不是要看的摄像头，将命令中的 /dev/video0 改为 /dev/video2 再试。
+
+
+3. 在 Mac 浏览器打开画面
+
+http://192.168.124.5:8080/stream_simple.html
+
+也可以在 Mac 终端直接打开：
+
+open "http://192.168.124.5:8080/stream_simple.html"
+
+备用首页：
+
+http://192.168.124.5:8080/
+
+单张快照：
+
+http://192.168.124.5:8080/?action=snapshot
+
+用途：第一个地址用于持续查看摄像头，第二个是 MJPG-Streamer 首页，第三个只返回一张 JPEG。
+如果树莓派 IP 改变，用 hostname -I 查看后，替换地址中的 192.168.124.5。
+安全：这个临时服务默认没有用户名和密码，只应在可信的局域网中使用，不要直接暴露到公网。
+
+
+4. 查看 8080 端口是否正在监听
+
+ss -lnt | grep ':8080'
+
+用途：看到 LISTEN 表示网页视频服务正在运行。没有输出时，浏览器无法打开 8080 端口。
+
+
+5. 资料中的原厂 Network-RC 完整控制后台
+
+http://<车的IP>:8080/controller
+
+当前 IP 对应：
+
+http://192.168.124.5:8080/controller
+
+资料《树莓派镜像烧录和 network-RC 配置》说明这是油门、云台、方向和摄像头的原厂后台。
+但实车当前没有 network-rc.service，也没有 network-rc 程序目录，所以 /controller 现在不可用。
+资料的安装命令面向旧版 Raspberry Pi OS Buster，并会从网络直接执行脚本；当前系统是 Debian 12 Bookworm，未核对前不要直接执行旧安装命令。
+
+
+============================================================
+四、最常用的连接顺序
+============================================================
+
+1. 让 Mac 和车连接同一路由器，或让树莓派连接 Mac 创建的 Wi-Fi 热点。
+2. 在树莓派上执行：hostname -I
+3. 在 Mac 上执行：ping -c 3 <车的IP>
+4. 在 Mac 上执行：nc -vz <车的IP> 22
+5. 在 Mac 上执行：ssh 5G@<车的IP>
+6. 登录后先检查 OpenCV、摄像头和编译环境，再传输/编译新工程。
+7. 先运行不输出 PWM 的视觉和 Pure Pursuit 测试。
+8. 只有完成舵机中值、左右限幅、电调中性和速度标定后，才把运动控制连到真实 GPIO/PWM。
+
+
+============================================================
+五、遇到问题时先记录这些结果
+============================================================
+
+Mac 端：
+sw_vers
+uname -m
+ping -c 3 pi.local
+nc -vz pi.local 22
+
+树莓派端：
+whoami
+hostname
+hostname -I
+ip -br address
+nmcli device status
+pkg-config --modversion opencv4
+python3 -c 'import cv2; print(cv2.__version__)'
+g++ --version
+cmake --version
+ls -l /dev/video*
+sudo systemctl status ssh --no-pager
+
+用途：把这些命令的输出保存下来，可以快速判断问题是网络、登录、OpenCV、编译器、摄像头还是服务状态导致。
+
+
+============================================================
+六、在 Mac 交叉编译树莓派 C++ 运动控制程序
+============================================================
+
+说明：Mac 和树莓派虽然都是 ARM64，但 macOS 可执行文件不能直接在 Linux 上运行。
+交叉编译器会在 Mac 上生成 Debian/树莓派可运行的 Linux ARM64 ELF 文件。
+
+
+1. Mac 一次性安装 Linux ARM64 交叉编译工具链
+
+brew tap messense/macos-cross-toolchains
+brew install messense/macos-cross-toolchains/aarch64-unknown-linux-gnu
+
+用途：安装 aarch64-unknown-linux-gnu-g++。Homebrew 安装的 Python 等内容是工具链依赖，
+不会替换 macOS 系统 Python、项目 .venv 或 Conda 环境。
+
+
+2. 在 Mac 编译运动控制模块
+
+cd /Users/yuhaojin/Documents/5G_opencv
+./scripts/build_pi_motion_cross.sh
+
+用途：生成：
+/Users/yuhaojin/Documents/5G_opencv/build/pi-aarch64-motion/xtnetrc_motion_demo
+
+检查文件格式：
+
+file /Users/yuhaojin/Documents/5G_opencv/build/pi-aarch64-motion/xtnetrc_motion_demo
+
+正确结果应包含：ELF 64-bit、ARM aarch64、GNU/Linux。
+
+
+3. 上传到树莓派的独立测试目录
+
+cd /Users/yuhaojin/Documents/5G_opencv
+./scripts/deploy_pi_motion_staging.sh 5G@192.168.124.5
+
+用途：只上传到：
+/home/5G/xtnetrc_staging/motion_control/
+
+这个目录与原车视觉工程分开，不会覆盖 /home/5G/5G 或现有视觉识别程序。
+脚本没有使用 rsync --delete，也不会删除树莓派上的其他文件。
+
+
+4. 在树莓派运行离线运动控制演示
+
+cd /home/5G/xtnetrc_staging/motion_control
+./xtnetrc_motion_demo --config ./motion_default.json left
+
+用途：验证交叉编译程序能否运行。当前演示只计算转角和速度，输出应包含：
+硬件输出: disabled
+
+它不会访问 GPIO、舵机、电调或摄像头。
+
+
+5. 在树莓派检查程序依赖
+
+file /home/5G/xtnetrc_staging/motion_control/xtnetrc_motion_demo
+ldd /home/5G/xtnetrc_staging/motion_control/xtnetrc_motion_demo
+
+用途：确认架构以及运行时动态库。当前已验证只依赖树莓派系统的 libc.so.6 和 libm.so.6。
+
+
+6. 只替换 staging 中的运动控制测试程序
+
+rsync -av --progress \
+/Users/yuhaojin/Documents/5G_opencv/build/pi-aarch64-motion/xtnetrc_motion_demo \
+5G@192.168.124.5:/home/5G/xtnetrc_staging/motion_control/
+
+用途：以后修改 C++ 运动算法后，只增量更新独立测试程序。
+不要把目的路径改成现有视觉工程目录，除非已经完成备份和兼容性验证。
+
+
+============================================================
+七、交叉编译树莓派视觉程序与 VS Code Profile
+============================================================
+
+1. 首次只读同步树莓派现有 OpenCV 4.13 开发文件
+
+cd /Users/yuhaojin/Documents/5G_opencv
+./scripts/sync_pi_opencv_sysroot.sh 5G@192.168.124.5
+
+用途：从树莓派读取 OpenCV 头文件、CMake 配置、动态库和实际依赖，保存到：
+/Users/yuhaojin/Documents/5G_opencv/local/pi-sysroot
+
+不会向树莓派安装软件，也不会修改或覆盖原视觉程序。local/ 已被 .gitignore 忽略。
+只有树莓派 OpenCV 或系统库升级后才需要重新同步，平时不必重复执行。
+
+
+2. 在 Mac 交叉编译树莓派视觉程序
+
+cd /Users/yuhaojin/Documents/5G_opencv
+./scripts/build_pi_vision_cross.sh
+
+输出文件：
+/Users/yuhaojin/Documents/5G_opencv/build/pi-aarch64-vision/xt_netrc_vision
+
+用途：生成可直接在当前 Debian 12 ARM64 树莓派运行的 ELF 文件。
+C++ 运行库已静态放入文件，避免树莓派出现 GLIBCXX 版本不匹配。
+
+
+3. 上传视觉文件到独立测试目录
+
+./scripts/deploy_pi_vision_staging.sh 5G@192.168.124.5
+
+上传位置：
+/home/5G/xtnetrc_staging/vision_cross/xt_netrc_vision
+
+安全验证：
+
+ssh 5G@192.168.124.5 \
+'/home/5G/xtnetrc_staging/vision_cross/xt_netrc_vision --help'
+
+这个命令只检查程序和动态库能否加载，不会打开摄像头。
+
+
+4. VS Code 的 opencv Profile
+
+Python、Pylance、C/C++ 和 CMake Tools 已在 opencv Profile 启用。
+它们复用 ~/.vscode/extensions 中已有的扩展目录，没有为不同 Profile 保存第二份本体。
+项目 Python 解释器仍为：
+/Users/yuhaojin/Documents/5G_opencv/.venv/bin/python
+
+
+5. VS Code 一键构建
+
+在工程中按 Cmd+Shift+B，默认任务“构建: Mac + 树莓派 ARM64”会并行生成：
+
+- Mac Release 工程
+- build/pi-aarch64-motion/xtnetrc_motion_demo
+- build/pi-aarch64-vision/xt_netrc_vision
+
+默认构建只在 Mac 生成文件，不自动上传，不覆盖树莓派现有程序。
+
+
+============================================================
+八、树莓派本地摄像头 + 运动控制安全验证（不接电机）
+============================================================
+
+1. 在 Mac 交叉编译验证器
+
+cd /Users/yuhaojin/Documents/5G_opencv
+./scripts/build_pi_camera_motion_validation.sh
+
+用途：把现有 C++ 车道检测和新的 C++ 运动控制器链接在一个独立程序中。
+输出文件：
+/Users/yuhaojin/Documents/5G_opencv/build/pi-aarch64-camera-motion-validation/xtnetrc_camera_motion_validation
+
+程序没有 GPIO、PWM、舵机或电调代码。真实摄像头只提供 detected 和 confidence；
+由于相机尚未做鸟瞰和米制标定，验证器使用明确标注的合成直线路径检查安全门控，
+不会把像素误差直接换算成真实转角。
+
+
+2. 在树莓派本地运行 120 帧验证
+
+cd /home/5G/xtnetrc_staging/motion_control
+./xtnetrc_camera_motion_validation \
+  --config ./motion_default.json --camera 0 --frames 120
+
+用途：在树莓派本机读取 /dev/video0，绕过网页视频网络延迟，验证置信度门控、
+失线立即停车、恢复确认和速度范围。最后应显示：
+安全约束违规=0 硬件输出=disabled
+
+如果提示无法打开摄像头，先查看占用 8080 摄像头流的程序，再重试：
+
+sudo lsof /dev/video0
+
+用途：查看哪个进程正在占用摄像头；只查看，不会结束进程。
+
+
+============================================================
+九、相机内参、鸟瞰和米制地面坐标标定
+============================================================
+
+1. 打印标定板
+
+在 Mac 打开：
+/Users/yuhaojin/Documents/5G_opencv/output/pdf/XT-NetRC_Charuco相机标定板_A4.pdf
+
+打印时选择“实际大小”或 100%，不要选择“适合页面”。打印后用尺测量底部校验线，
+必须是 100.0 mm，否则相机标定的实际尺寸会错误。
+
+
+2. 树莓派采集 20 张 ChArUco 标定照片
+
+mkdir -p /home/5G/xtnetrc_staging/calibration/intrinsics
+/home/5G/xtnetrc_staging/vision_cross/xt_netrc_vision \
+  --camera 0 --width 640 --height 480 \
+  --capture-dir /home/5G/xtnetrc_staging/calibration/intrinsics \
+  --capture-count 20 --capture-interval-ms 1500
+
+用途：每隔 1.5 秒保存一张未经画线的原始画面。采集时改变标定板距离、位置和角度。
+相机分辨率固定为 640x480，标定后不能随意更改。
+
+
+3. 下载标定照片到 Mac
+
+cd /Users/yuhaojin/Documents/5G_opencv
+rsync -av 5G@192.168.124.5:/home/5G/xtnetrc_staging/calibration/intrinsics/ \
+  main/camera_calibration/captures/intrinsics/
+
+用途：只下载照片，不修改树莓派现有视觉程序。
+
+
+4. 计算相机内参和镜头畸变
+
+.venv/bin/python scripts/calibrate_camera_intrinsics.py \
+  --images main/camera_calibration/captures/intrinsics \
+  --output main/camera_calibration/output/camera_intrinsics.json
+
+用途：识别 5x7 ChArUco 板并计算内参。至少需要 12 张有效照片；
+RMS 重投影误差建议小于 0.5 px，超过 1.0 px 应重新采集。
+
+
+5. 拍地面参考图
+
+/home/5G/xtnetrc_staging/vision_cross/xt_netrc_vision \
+  --camera 0 --width 640 --height 480 \
+  --snapshot /home/5G/xtnetrc_staging/calibration/ground_reference.jpg
+
+用途：保存一张固定相机视角的原始地面图片。地面四点距离和点击顺序详见：
+/Users/yuhaojin/Documents/5G_opencv/main/camera_calibration/README.md
+
+
+6. 在 Mac 点选地面四点并生成米制投影参数
+
+.venv/bin/python scripts/calibrate_ground_plane.py \
+  --image main/camera_calibration/captures/ground_reference.jpg \
+  --intrinsics main/camera_calibration/output/camera_intrinsics.json \
+  --output main/camera_calibration/output/ground_projection.json \
+  --near-m 0.70 --far-m 1.20 --half-width-m 0.25
+
+用途：先去畸变，再建立图像像素到车辆坐标的单应矩阵。车辆坐标原点为后轴中心，
+x 向前、y 向左，单位为米。按 U 撤销点击，按 Enter 保存。
+
+本次实车实际采用：近端 x=0.70 m、远端 x=1.20 m、左右 y=±0.25 m。
+最终文件：
+/Users/yuhaojin/Documents/5G_opencv/main/camera_calibration/output/camera_intrinsics.json
+/Users/yuhaojin/Documents/5G_opencv/main/camera_calibration/output/ground_projection.json
+/Users/yuhaojin/Documents/5G_opencv/main/camera_calibration/output/ground_birdseye_preview.jpg
+
+当前内参 RMS 重投影误差为 0.2345 px；地面四点 C++ 回代测试已通过。
+保持相机安装和 640x480 分辨率不变，否则必须重新标定。

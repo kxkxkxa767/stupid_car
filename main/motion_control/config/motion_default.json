@@ -1,0 +1,25 @@
+{
+  "motion": {
+    "wheelbase_m": 0.23861,
+    "lookahead_m": 0.45,
+    "max_steering_deg": 25.0,
+    "max_steering_rate_deg_s": 120.0,
+    "max_speed_mps": 0.6,
+    "min_curve_speed_mps": 0.18,
+    "degraded_max_speed_mps": 0.2,
+    "curvature_speed_gain": 0.8,
+    "confidence_stop": 0.25,
+    "confidence_degraded": 0.55,
+    "max_path_distance_m": 5.0,
+    "max_lateral_offset_m": 2.0,
+    "max_accel_mps2": 0.8,
+    "max_decel_mps2": 1.2,
+    "confidence_hysteresis": 0.05,
+    "confidence_reacquire_frames": 3
+  },
+  "status": {
+    "wheelbase_m": "measured",
+    "max_steering_deg": "provisional_until_steering_calibration",
+    "speed_values": "software_targets_only_until_esc_and_odometry_calibration"
+  }
+}

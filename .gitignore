@@ -1,0 +1,31 @@
+# 构建、临时与备份目录
+build/
+local/
+tmp/
+backup/
+third_party/
+.venv/
+venv/
+env/
+
+# 二进制库与编译目标
+*.dylib
+*.so
+*.so.*
+*.a
+*.o
+*.app/
+
+# 模型与媒体大文件
+*.tflite
+*.tar.gz
+*.zip
+*.vec
+*.wav
+*.mp4
+*.avi
+
+# 缓存与系统文件
+__pycache__/
+*.py[cod]
+.DS_Store

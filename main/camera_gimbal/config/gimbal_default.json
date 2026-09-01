@@ -1,0 +1,16 @@
+{
+  "camera_gimbal": {
+    "pan_gpio_bcm": 22,
+    "tilt_gpio_bcm": 23,
+    "pwm_frequency_hz": 50,
+    "pwm_range": 1000,
+    "pan_center_pwm": 72,
+    "pan_min_pwm": 28,
+    "pan_max_pwm": 122,
+    "tilt_center_pwm": 73,
+    "tilt_min_pwm": 58,
+    "tilt_max_pwm": 122,
+    "max_step_pwm": 1,
+    "step_interval_ms": 20
+  }
+}

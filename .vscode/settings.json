@@ -1,0 +1,15 @@
+{
+  "cmake.useCMakePresets": "always",
+  "cmake.configureOnOpen": true,
+  "cmake.sourceDirectory": "${workspaceFolder}",
+  "cmake.environment": {
+    "PATH": "/opt/homebrew/bin:${env:PATH}"
+  },
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/mac-release/compile_commands.json",
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.analysis.extraPaths": ["${workspaceFolder}/OpenCV/python"],
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  "files.associations": {
+    "*.hpp": "cpp"
+  }
+}

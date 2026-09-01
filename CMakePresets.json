@@ -1,0 +1,54 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "mac-debug",
+      "displayName": "macOS Debug (local OpenCV 4)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/mac-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_PREFIX_PATH": "${sourceDir}/local/opencv"
+      }
+    },
+    {
+      "name": "mac-release",
+      "displayName": "macOS Release (local OpenCV 4)",
+      "inherits": "mac-debug",
+      "binaryDir": "${sourceDir}/build/mac-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "raspberry-pi",
+      "displayName": "Raspberry Pi (system OpenCV 4)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/raspberry-pi",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "mac-debug",
+      "configurePreset": "mac-debug"
+    },
+    {
+      "name": "mac-release",
+      "configurePreset": "mac-release"
+    },
+    {
+      "name": "raspberry-pi",
+      "configurePreset": "raspberry-pi"
+    }
+  ]
+}

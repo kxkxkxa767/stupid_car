@@ -1,0 +1,32 @@
+double error_ = 0;
+double last_error = 0;
+double kp = 0.15;
+double kd = 0.1;
+
+double min_angle = 60;
+double max_angle = 120;
+
+double PID(double error1)
+{
+	double angle = kp * error1 + kd * (error1 - last_error);
+	last_error = error1;
+	return angle;
+}
+
+void Control()
+{
+	//图像处理得到赛道中线值mid_final
+	error = mid_final - frame.cols / 2;//计算偏差量
+	cout<<"偏差:"<<error;
+	double angle = PID(error_x);
+	angle = 90 - angle;
+	
+	//限幅
+	if (angle > max_angle)
+		angle = max_angle;
+	if (angle < min_angle)
+		angle = min_angle;
+
+	cout << "angle:" << angle << endl;
+	Set_duo(angle);
+}
