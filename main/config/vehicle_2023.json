@@ -17,8 +17,23 @@
     "front_track_width_m": null,
     "rear_track_width_m": null,
     "vehicle_mass_kg": null,
-    "steering_angle_calibration": null,
     "encoder_counts_per_revolution": null
+  },
+  "steering_control_calibration": {
+    "date_tested": "2026-09-01",
+    "method": "fixed_camera_black_centerline_before_after_pose_fit",
+    "pwm_frequency_hz": 50,
+    "pwm_range": 1000,
+    "zero_steering_center_pwm_interpolated": 72.446,
+    "zero_steering_center_pulse_us": 1448.92,
+    "recommended_integer_center_pwm": 72,
+    "measured_equivalent_steering_deg": {
+      "pwm_72": -0.2085,
+      "pwm_73": 0.2594
+    },
+    "sign_convention": "positive PWM change and positive steering angle turn vehicle left",
+    "evidence_directory": "../camera_calibration/captures/steering_calibration_2026-09-01",
+    "warning": "Integer PWM range 1000 cannot command 72.446 exactly; PWM 72 has the smaller measured absolute error. Revalidate after steering linkage, tire, load, voltage, or floor changes."
   },
   "measurement_evidence": {
     "wheel_width": "1787833197333.jpg",

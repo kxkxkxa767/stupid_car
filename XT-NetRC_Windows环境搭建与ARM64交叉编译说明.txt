@@ -1,0 +1,628 @@
+XT-NetRC Windows 环境搭建与 ARM64 交叉编译说明
+================================================
+
+文档日期：2026-09-01
+工程仓库：https://github.com/kxkxkxa767/stupid_car
+目标车辆：XT-NetRC（树莓派 Debian 12 / ARM64）
+
+
+一、先看结论
+------------
+
+本工程推荐的 Windows 开发方式是：
+
+    Windows 10/11 x86_64
+        ↓
+    WSL2 + Ubuntu 22.04 x86_64
+        ↓
+    aarch64 Linux GNU 交叉编译器
+        ↓
+    树莓派 Debian 12 ARM64 可执行文件
+
+不要使用 Visual Studio 的 Windows ARM 编译器、MinGW ARM 编译器或 Windows 版
+OpenCV 来生成树莓派程序。树莓派运行的是 Linux，目标文件必须是 Linux ELF ARM64，
+不是 Windows PE/EXE。
+
+本文中的“x86 编译 ARM”准确含义是：
+
+    x86_64 Windows/WSL 主机交叉编译 aarch64（ARM64）Linux 目标程序。
+
+当前工程和实车 sysroot 都按 aarch64/arm64 配置。如果树莓派执行 uname -m 后显示
+armv7l，而不是 aarch64，请立即停止，不能使用本文工具链；armv7l 需要另外配置
+arm-linux-gnueabihf 32 位工具链。
+
+
+二、不同命令应该在哪里执行
+----------------------------
+
+本文用下面三种标签区分终端：
+
+【Windows PowerShell】
+    Windows 中以管理员身份打开的 PowerShell。
+
+【WSL Ubuntu】
+    Ubuntu/WSL2 的 Bash 终端。克隆、编译和绝大多数开发命令都在这里执行。
+
+【树莓派】
+    通过 ssh 登录 5G@树莓派地址 后的终端。
+
+不要把 PowerShell 命令复制到 Ubuntu，也不要把 apt、cmake 等 Ubuntu 命令直接复制
+到 Windows PowerShell。
+
+
+三、Windows 安装 WSL2 和 Ubuntu 22.04
+-------------------------------------
+
+要求：
+
+1. Windows 11，或 Windows 10 2004（Build 19041）及以上。
+2. BIOS/UEFI 中已开启 CPU 虚拟化。
+3. 建议至少预留 15 GB 磁盘空间。
+
+【Windows PowerShell，管理员】先查看可安装的发行版：
+
+    wsl --list --online
+
+如果列表中存在 Ubuntu-22.04，安装它：
+
+    wsl --install -d Ubuntu-22.04
+
+如果电脑完全没有安装过 WSL，也可以先执行：
+
+    wsl --install
+
+安装后按提示重启电脑。第一次打开 Ubuntu 时，创建一个 WSL 用户名和密码。这个密码
+只属于队友自己的 Ubuntu，不是树莓派密码。
+
+【Windows PowerShell】更新 WSL 并确认使用 WSL2：
+
+    wsl --update
+    wsl --list --verbose
+
+输出中 Ubuntu-22.04 的 VERSION 应为 2。如果显示 1：
+
+    wsl --set-version Ubuntu-22.04 2
+
+微软官方说明：
+
+    https://learn.microsoft.com/windows/wsl/install
+    https://learn.microsoft.com/windows/wsl/setup/environment
+
+
+四、在 WSL 中安装基础开发工具
+------------------------------
+
+【WSL Ubuntu】更新软件索引：
+
+    sudo apt update
+    sudo apt upgrade -y
+
+安装 C/C++、CMake、Git、Python、SSH、rsync 和 ARM64 交叉编译工具：
+
+    sudo apt install -y \
+      build-essential \
+      cmake \
+      ninja-build \
+      git \
+      pkg-config \
+      file \
+      rsync \
+      openssh-client \
+      python3 \
+      python3-venv \
+      python3-pip \
+      gcc-aarch64-linux-gnu \
+      g++-aarch64-linux-gnu \
+      binutils-aarch64-linux-gnu
+
+检查版本：
+
+    cmake --version
+    git --version
+    python3 --version
+    aarch64-linux-gnu-g++ --version
+    aarch64-linux-gnu-g++ -dumpmachine
+
+最后一条应输出：
+
+    aarch64-linux-gnu
+
+Ubuntu 22.04 软件源中的 CMake 版本可能只有 3.22，而工程部分脚本使用了
+cmake --fresh（需要 CMake 3.24 或以上）。为了与当前工程使用的 CMake 3.28.1
+保持一致，单独创建一个工具环境：
+
+    mkdir -p "$HOME/.venvs"
+    python3 -m venv "$HOME/.venvs/xtnetrc-tools"
+    "$HOME/.venvs/xtnetrc-tools/bin/python" -m pip install --upgrade pip
+    "$HOME/.venvs/xtnetrc-tools/bin/python" -m pip install "cmake==3.28.1"
+    echo 'export PATH="$HOME/.venvs/xtnetrc-tools/bin:$PATH"' >> "$HOME/.bashrc"
+    source "$HOME/.bashrc"
+    cmake --version
+
+这里应显示 cmake version 3.28.1。这个工具环境只保存 CMake，不要和工程自己的
+.venv Python/OpenCV 环境混在一起。
+
+为什么推荐 Ubuntu 22.04：它自带的 glibc 基线通常不高于实车 Debian 12 的 glibc
+2.36，可降低“在新系统编译、放到旧系统提示 GLIBC_x.xx not found”的风险。不要在未
+验证 ABI 的情况下随意换成更新发行版。
+
+
+五、兼容工程现有的交叉编译器名称
+--------------------------------
+
+macOS 原工程使用的编译器名称是：
+
+    aarch64-unknown-linux-gnu-gcc
+    aarch64-unknown-linux-gnu-g++
+
+Ubuntu apt 安装后的名称是：
+
+    aarch64-linux-gnu-gcc
+    aarch64-linux-gnu-g++
+
+它们目标平台相同，但名字不同。为了不修改工程脚本，在 WSL 用户目录创建两个别名：
+
+【WSL Ubuntu】
+
+    mkdir -p "$HOME/.local/bin"
+    ln -sf /usr/bin/aarch64-linux-gnu-gcc \
+      "$HOME/.local/bin/aarch64-unknown-linux-gnu-gcc"
+    ln -sf /usr/bin/aarch64-linux-gnu-g++ \
+      "$HOME/.local/bin/aarch64-unknown-linux-gnu-g++"
+
+把 ~/.local/bin 加入 PATH：
+
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+    source "$HOME/.bashrc"
+
+验证：
+
+    which aarch64-unknown-linux-gnu-g++
+    aarch64-unknown-linux-gnu-g++ -dumpmachine
+
+预期仍为 aarch64-linux-gnu。
+
+
+六、克隆工程：必须放在 WSL 的 Linux 文件系统
+----------------------------------------------
+
+推荐把工程放在 ~/projects，而不是 C:\、桌面或 /mnt/c。WSL 在 Linux 文件系统中
+编译大量 C++ 文件会更快，也可避免 Windows/Unix 权限和换行符问题。
+
+【WSL Ubuntu】
+
+    mkdir -p "$HOME/projects"
+    cd "$HOME/projects"
+    git config --global core.autocrlf input
+    git clone https://github.com/kxkxkxa767/stupid_car.git
+    cd stupid_car
+
+检查仓库：
+
+    git status
+    git remote -v
+    git log -1 --oneline
+
+仓库只保存源码、配置和必要资料，不保存 build、local、third_party 或 Python 虚拟
+环境。每名队友都应在自己的电脑上生成这些目录，不要提交它们。
+
+如果脚本报错：
+
+    /usr/bin/env: ‘bash\r’: No such file or directory
+
+说明文件被 Windows 转成了 CRLF。确认 core.autocrlf=input 后重新克隆，不要批量修改
+并提交脚本换行符。
+
+
+七、VS Code 配置
+----------------
+
+1. 在 Windows 安装 VS Code。
+2. 安装扩展：
+
+       WSL（ms-vscode-remote.remote-wsl）
+       C/C++（ms-vscode.cpptools）
+       CMake Tools（ms-vscode.cmake-tools）
+       Python（ms-python.python）
+       Pylance（ms-python.vscode-pylance）
+
+3. 在【WSL Ubuntu】的工程目录执行：
+
+       code .
+
+4. VS Code 左下角应显示“WSL: Ubuntu-22.04”。如果没有，说明当前窗口仍在 Windows
+   本机环境中，不应在该窗口进行 ARM64 交叉编译。
+
+微软官方 WSL + VS Code 说明：
+
+    https://learn.microsoft.com/windows/wsl/tutorials/wsl-vscode
+
+注意：仓库现有 .vscode/tasks.json 和 CMakePresets.json 主要包含 macOS 任务。
+Windows 队友不要使用 mac-debug、mac-release，也不要使用名为 raspberry-pi 的原生
+预设来做交叉编译。WSL 下应执行本文给出的 build_pi_*_cross.sh 脚本或手动 CMake
+命令。
+
+
+八、Python/OpenCV 视觉环境
+-------------------------
+
+【WSL Ubuntu，工程根目录】创建独立环境：
+
+    cd "$HOME/projects/stupid_car"
+    python3 -m venv .venv
+    source .venv/bin/activate
+    python -m pip install --upgrade pip
+    python -m pip install -r requirements.txt
+
+验证版本：
+
+    python -c "import cv2, numpy; print('OpenCV', cv2.__version__); print('NumPy', numpy.__version__)"
+
+运行不需要摄像头的 Python 自检：
+
+    PYTHONPATH="$PWD/OpenCV/python" \
+      python -m unittest discover -s OpenCV/python/tests -v
+
+退出虚拟环境：
+
+    deactivate
+
+说明：
+
+1. Windows 自带或以前安装的 Python 与 WSL Python 是两套环境，不能混用 site-packages。
+2. .venv 不能从别人电脑复制，必须在当前 WSL 中重新创建。
+3. WSL 不一定直接提供 Windows USB 摄像头为 /dev/video0。算法开发可先使用图片或视频；
+   若必须用 Windows 摄像头，可在 Windows 本机单独建立 Python 虚拟环境，但该环境不
+   参与 Linux ARM64 C++ 交叉编译。
+
+
+九、连接树莓派并确认目标架构
+----------------------------
+
+Windows 电脑和树莓派需要连接同一个局域网。下面以树莓派地址 192.168.124.5 为例，
+实际地址变化时全部替换。
+
+【WSL Ubuntu】
+
+    ping -c 4 192.168.124.5
+    ssh 5G@192.168.124.5
+
+第一次连接出现主机指纹时，核对地址无误后输入 yes。树莓派密码不要写进代码、
+说明文件或 Git 仓库，向项目负责人单独获取。
+
+【树莓派】确认系统：
+
+    uname -m
+    dpkg --print-architecture
+    cat /etc/os-release
+    ldd --version | head -n 1
+    g++ --version | head -n 1
+    python3 -c "import cv2; print(cv2.__version__)"
+
+本工程当前预期：
+
+    uname -m                  -> aarch64
+    dpkg --print-architecture -> arm64
+    系统                      -> Debian 12
+    glibc                     -> 2.36
+    树莓派 C++ OpenCV         -> /usr/local 下的 OpenCV 4.13.x
+
+退出树莓派：
+
+    exit
+
+
+十、同步树莓派 OpenCV sysroot
+----------------------------
+
+运动控制和云台模块不依赖 OpenCV，可以先编译。视觉、地面投影和视觉测距必须链接树莓
+派正在使用的 ARM64 OpenCV 4.13 以及对应系统库，不能链接 WSL 的 x86_64 OpenCV。
+
+工程提供了只读同步脚本。它从树莓派读取头文件和动态库，写入本机：
+
+    local/pi-sysroot
+
+它不会安装、删除或覆盖树莓派文件。
+
+【WSL Ubuntu，工程根目录】
+
+    chmod +x scripts/*.sh
+    ./scripts/sync_pi_opencv_sysroot.sh 5G@192.168.124.5
+
+同步完成后检查：
+
+    test -f local/pi-sysroot/usr/local/lib/cmake/opencv4/OpenCVConfig.cmake \
+      && echo "OpenCV sysroot OK"
+    find local/pi-sysroot/usr/local/lib -maxdepth 1 -name 'libopencv_*.so*' | head
+
+如果提示树莓派没有 rsync，先在树莓派执行 rsync --version。是否安装缺少的软件必须由
+项目负责人确认，不要擅自升级或替换树莓派 OpenCV。
+
+local/pi-sysroot 由每名队友独立同步，已被 .gitignore 排除，不能 git add -f 上传。
+
+
+十一、先做 x86_64 本机算法自检
+-------------------------------
+
+运动控制不依赖 OpenCV，可以先在 WSL x86_64 上编译和测试。生成的是 WSL 本机程序，
+不能上传到树莓派。
+
+【WSL Ubuntu，工程根目录】
+
+    cmake -S main/motion_control \
+      -B build/wsl-motion-test \
+      -DCMAKE_BUILD_TYPE=Debug \
+      -DBUILD_TESTING=ON
+    cmake --build build/wsl-motion-test --parallel
+    ctest --test-dir build/wsl-motion-test --output-on-failure
+    ./build/wsl-motion-test/xtnetrc_motion_demo \
+      --config main/motion_control/config/motion_default.json left
+
+检查主机程序：
+
+    file build/wsl-motion-test/xtnetrc_motion_demo
+
+这里应显示 x86-64。它只用于本机算法测试。
+
+
+十二、交叉编译 ARM64 运动控制和云台
+----------------------------------
+
+【WSL Ubuntu，工程根目录】
+
+    ./scripts/build_pi_motion_cross.sh
+    ./scripts/build_pi_gimbal_cross.sh
+
+输出：
+
+    build/pi-aarch64-motion/xtnetrc_motion_demo
+    build/pi-aarch64-gimbal/xtnetrc_gimbal_cli
+
+确认目标架构：
+
+    file build/pi-aarch64-motion/xtnetrc_motion_demo
+    file build/pi-aarch64-gimbal/xtnetrc_gimbal_cli
+    aarch64-linux-gnu-readelf -h \
+      build/pi-aarch64-motion/xtnetrc_motion_demo | grep Machine
+
+正确结果必须包含：
+
+    ELF 64-bit
+    ARM aarch64 或 AArch64
+
+如果显示 x86-64，说明没有使用交叉编译工具链，禁止上传到树莓派。
+
+
+十三、交叉编译 ARM64 视觉模块
+----------------------------
+
+先完成第十节的 sysroot 同步，然后执行：
+
+【WSL Ubuntu，工程根目录】
+
+    ./scripts/build_pi_vision_cross.sh
+    ./scripts/build_pi_camera_motion_validation.sh
+    ./scripts/build_pi_visual_distance_test.sh
+
+主要输出：
+
+    build/pi-aarch64-vision/xt_netrc_vision
+    build/pi-aarch64-camera-motion-validation/xtnetrc_camera_motion_validation
+    build/pi-aarch64-visual-distance-test/xtnetrc_visual_distance_test
+
+检查：
+
+    file build/pi-aarch64-vision/xt_netrc_vision
+    file build/pi-aarch64-camera-motion-validation/xtnetrc_camera_motion_validation
+    file build/pi-aarch64-visual-distance-test/xtnetrc_visual_distance_test
+
+三个文件都必须是 Linux ELF 64-bit ARM aarch64。
+
+不能在 x86_64 WSL 中直接运行 ARM64 文件。出现 Exec format error 不是编译失败，而是
+主机和目标架构不同。应上传到树莓派 staging 目录验证。
+
+
+十四、可选：一次交叉编译根工程
+------------------------------
+
+需要同时生成根工程包含的视觉、运动、地面投影、云台和视觉测距模块时：
+
+【WSL Ubuntu，工程根目录】
+
+    cmake --fresh \
+      -S . \
+      -B build/wsl-pi-arm64-all \
+      -DCMAKE_TOOLCHAIN_FILE="$PWD/cmake/toolchains/raspberry-pi-aarch64.cmake" \
+      -DXTNETRC_PI_SYSROOT="$PWD/local/pi-sysroot" \
+      -DOpenCV_DIR="$PWD/local/pi-sysroot/usr/local/lib/cmake/opencv4" \
+      -DXTNETRC_STATIC_CXX_RUNTIME=ON \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+      -DBUILD_TESTING=OFF
+
+    cmake --build build/wsl-pi-arm64-all --parallel
+
+如果 CMake 版本不支持 --fresh，删除“--fresh”后使用一个全新的 build 目录，不要复用
+曾经由 Windows、macOS 或另一套编译器生成的 CMakeCache.txt。
+
+
+十五、安全上传到树莓派 staging 目录
+----------------------------------
+
+树莓派中已有确认可用的视觉识别程序，不能直接覆盖。工程脚本默认只上传到独立的
+/home/5G/xtnetrc_staging 目录。
+
+上传运动控制测试程序：
+
+【WSL Ubuntu】
+
+    ./scripts/deploy_pi_motion_staging.sh 5G@192.168.124.5
+
+只运行离线演示，不访问 GPIO/PWM：
+
+    ssh 5G@192.168.124.5 \
+      'cd /home/5G/xtnetrc_staging/motion_control && \
+       ./xtnetrc_motion_demo --config ./motion_default.json left'
+
+上传视觉测试程序：
+
+    ./scripts/deploy_pi_vision_staging.sh 5G@192.168.124.5
+
+先只检查程序和动态库能否加载：
+
+    ssh 5G@192.168.124.5 \
+      '/home/5G/xtnetrc_staging/vision_cross/xt_netrc_vision --help'
+
+不要直接复制到 /home/5G/5G，不要覆盖树莓派原视觉程序，不要擅自停止
+network-rc.service。
+
+
+十六、日常更新和重新编译
+------------------------
+
+【WSL Ubuntu，工程根目录】
+
+    git status
+    git pull --ff-only
+    source .venv/bin/activate
+
+代码更新后，普通情况只需重新运行相应脚本：
+
+    ./scripts/build_pi_motion_cross.sh
+    ./scripts/build_pi_gimbal_cross.sh
+    ./scripts/build_pi_vision_cross.sh
+
+只有以下情况需要重新同步 sysroot：
+
+1. 树莓派 OpenCV 被升级或重新安装。
+2. 树莓派系统动态库发生明显变化。
+3. 更换了另一块系统镜像或另一辆车。
+4. 链接时出现找不到 ARM64 OpenCV/系统动态库。
+
+
+十七、常见错误排查
+------------------
+
+1. 找不到 aarch64-unknown-linux-gnu-g++
+
+       source "$HOME/.bashrc"
+       which aarch64-unknown-linux-gnu-g++
+       ls -l "$HOME/.local/bin/aarch64-unknown-linux-gnu-g++"
+
+   仍找不到时重新执行第五节。
+
+2. OpenCVConfig.cmake not found
+
+       ./scripts/sync_pi_opencv_sysroot.sh 5G@192.168.124.5
+       test -f local/pi-sysroot/usr/local/lib/cmake/opencv4/OpenCVConfig.cmake
+
+3. 编译结果是 x86-64
+
+   使用了本机编译命令而不是 build_pi_*_cross.sh。清理到一个新的 build 目录后重新
+   交叉编译，不要上传 x86-64 文件。
+
+4. 树莓派运行提示 Exec format error
+
+       file 要上传的文件
+
+   如果不是 ELF 64-bit ARM aarch64，则目标架构错误。
+
+5. 树莓派提示 GLIBC_x.xx not found 或 GLIBCXX_x.xx not found
+
+   不要在树莓派上随意升级 glibc。确认使用 Ubuntu 22.04、当前工程 toolchain 和
+   XTNETRC_STATIC_CXX_RUNTIME=ON；视觉程序重新同步实车 sysroot 后再编译。
+
+6. error while loading shared libraries: libopencv_*.so
+
+   先检查树莓派原 OpenCV：
+
+       ssh 5G@192.168.124.5 'ldconfig -p | grep opencv | head'
+
+   确认交叉编译使用的是该车同步出的 sysroot，不能使用另一辆车或 WSL x86 OpenCV。
+
+7. ssh: connect to host ... No route to host / Connection timed out
+
+   确认 Windows 和车在同一网络，重新查看树莓派 IP；校园网、访客 Wi-Fi 和手机热点
+   可能启用客户端隔离。
+
+8. Permission denied (publickey,password)
+
+   用户名、IP 或密码错误。不要反复猜密码，也不要把密码提交到仓库。
+
+9. VS Code 找不到头文件
+
+   先成功生成 build/wsl-pi-arm64-all/compile_commands.json，再在 WSL 窗口中把 C/C++
+   扩展的 compileCommands 指向该文件。不要使用 mac-release 的 compile_commands.json。
+
+10. WSL 工程编译非常慢
+
+   确认工程在 ~/projects/stupid_car，而不是 /mnt/c/...；不要把 build、.venv 和 sysroot
+   放在 Windows NTFS 挂载目录中。
+
+
+十八、安全规则
+--------------
+
+1. 第一次实车电机测试必须把驱动轮架空，并准备物理断电。
+2. 未确认 PWM 中值、方向、限幅和 GPIO 编号前，不启用真实电机输出。
+3. 原厂 network-rc.service 和自动驾驶程序不能同时控制相同 PWM。
+4. 交叉编译和 sysroot 同步不等于允许覆盖原车程序。
+5. 新文件先放 /home/5G/xtnetrc_staging，完成 --help、动态库和离线测试后再讨论集成。
+6. 不上传 .venv、build、local、third_party、模型安装包或完整编译链。
+7. 不在 Git、文档、聊天截图中公开树莓派密码、GitHub token 或 Wi-Fi 密码。
+
+
+十九、最短安装与构建清单
+------------------------
+
+已经理解前文后，可按下面顺序快速执行。
+
+【Windows 管理员 PowerShell】
+
+    wsl --list --online
+    wsl --install -d Ubuntu-22.04
+
+【WSL Ubuntu】
+
+    sudo apt update
+    sudo apt install -y build-essential cmake ninja-build git pkg-config file \
+      rsync openssh-client python3 python3-venv python3-pip \
+      gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+      binutils-aarch64-linux-gnu
+
+    mkdir -p "$HOME/.venvs"
+    python3 -m venv "$HOME/.venvs/xtnetrc-tools"
+    "$HOME/.venvs/xtnetrc-tools/bin/python" -m pip install --upgrade pip
+    "$HOME/.venvs/xtnetrc-tools/bin/python" -m pip install "cmake==3.28.1"
+    echo 'export PATH="$HOME/.venvs/xtnetrc-tools/bin:$PATH"' >> "$HOME/.bashrc"
+    source "$HOME/.bashrc"
+    cmake --version
+
+    mkdir -p "$HOME/.local/bin" "$HOME/projects"
+    ln -sf /usr/bin/aarch64-linux-gnu-gcc \
+      "$HOME/.local/bin/aarch64-unknown-linux-gnu-gcc"
+    ln -sf /usr/bin/aarch64-linux-gnu-g++ \
+      "$HOME/.local/bin/aarch64-unknown-linux-gnu-g++"
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+    source "$HOME/.bashrc"
+
+    cd "$HOME/projects"
+    git clone https://github.com/kxkxkxa767/stupid_car.git
+    cd stupid_car
+
+    python3 -m venv .venv
+    source .venv/bin/activate
+    python -m pip install --upgrade pip
+    python -m pip install -r requirements.txt
+
+    chmod +x scripts/*.sh
+    ./scripts/build_pi_motion_cross.sh
+    ./scripts/build_pi_gimbal_cross.sh
+    ./scripts/sync_pi_opencv_sysroot.sh 5G@192.168.124.5
+    ./scripts/build_pi_vision_cross.sh
+
+    file build/pi-aarch64-motion/xtnetrc_motion_demo
+    file build/pi-aarch64-gimbal/xtnetrc_gimbal_cli
+    file build/pi-aarch64-vision/xt_netrc_vision
+
+三个交叉编译结果都应显示 Linux ELF 64-bit ARM aarch64。

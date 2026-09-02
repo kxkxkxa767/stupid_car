@@ -25,7 +25,7 @@ cmake \
   -B "$build_dir" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX="$install_dir" \
-  -DBUILD_LIST=core,imgproc,imgcodecs,videoio,highgui \
+  -DBUILD_LIST=core,imgproc,imgcodecs,video,videoio,highgui \
   -DBUILD_SHARED_LIBS=ON \
   -DBUILD_TESTS=OFF \
   -DBUILD_PERF_TESTS=OFF \
