@@ -20,6 +20,19 @@ endif()
 add_executable(xtnetrc_gps_speed_monitor src/monitor.cpp)
 target_link_libraries(xtnetrc_gps_speed_monitor PRIVATE xtnetrc_gps_speed)
 
+# 明确双重确认后才会输出电机 PWM 的短距离实车测试程序。
+add_executable(xtnetrc_gps_distance_test
+    src/distance_test.cpp
+    ../visual_distance_test/src/pigpio_vehicle.cpp
+)
+target_include_directories(xtnetrc_gps_distance_test PRIVATE
+    ../visual_distance_test/include
+)
+target_link_libraries(xtnetrc_gps_distance_test PRIVATE
+    xtnetrc_gps_speed
+    ${CMAKE_DL_LIBS}
+)
+
 include(CTest)
 if(BUILD_TESTING)
     add_executable(xtnetrc_gps_speed_test tests/gps_speed_test.cpp)
