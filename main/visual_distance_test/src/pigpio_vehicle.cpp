@@ -1,9 +1,11 @@
 #include "xtnetrc_visual_distance/pigpio_vehicle.hpp"
 
+#include <chrono>
 #include <cstring>
 #include <dlfcn.h>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 namespace xtnetrc::visual_distance {
 namespace {
@@ -39,6 +41,7 @@ struct PigpioVehicle::Impl {
     SetRange set_range{nullptr};
     Pwm pwm{nullptr};
     bool active{false};
+    int steering_center_pwm{72};
 };
 
 PigpioVehicle::PigpioVehicle() : impl_(std::make_unique<Impl>()) {}
@@ -66,6 +69,7 @@ void PigpioVehicle::initialize(const int steering_center_pwm) {
             throw std::runtime_error("gpioInitialise failed");
         }
         impl_->active = true;
+        impl_->steering_center_pwm = steering_center_pwm;
         if (impl_->set_mode(12, 1) < 0 || impl_->set_frequency(12, 50) < 0 ||
             impl_->set_range(12, 1000) < 0 ||
             impl_->set_mode(13, 1) < 0 || impl_->set_frequency(13, 200) < 0 ||
@@ -89,11 +93,23 @@ void PigpioVehicle::drive_forward(const int motor_pwm) {
     }
 }
 
+void PigpioVehicle::set_steering_pwm(const int steering_pwm) {
+    if (!impl_->active || steering_pwm < 65 || steering_pwm > 80) {
+        throw std::invalid_argument("steering PWM must be within safe test range 65..80");
+    }
+    if (impl_->pwm(12, static_cast<unsigned>(steering_pwm)) < 0) {
+        throw std::runtime_error("failed to write steering PWM");
+    }
+}
+
 void PigpioVehicle::stop() noexcept {
     if (!impl_) return;
     if (impl_->active) {
         if (impl_->pwm != nullptr) {
             impl_->pwm(13, 10000);
+            impl_->pwm(12, static_cast<unsigned>(impl_->steering_center_pwm));
+            // 给舵机留出回到机械中点的时间，再释放 pigpio。
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
         }
         if (impl_->terminate != nullptr) {
             impl_->terminate();

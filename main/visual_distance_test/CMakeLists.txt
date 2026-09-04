@@ -24,6 +24,34 @@ add_executable(xtnetrc_visual_distance_test
     src/main.cpp
     src/pigpio_vehicle.cpp
 )
+
+add_library(xtnetrc_lane_corridor STATIC
+    src/lane_corridor.cpp
+)
+target_include_directories(xtnetrc_lane_corridor PUBLIC
+    include
+    ../ground_projection/include
+)
+target_link_libraries(xtnetrc_lane_corridor PUBLIC
+    xtnetrc_visual_odometry
+    ${OpenCV_LIBS}
+)
+
+add_executable(xtnetrc_lane_follow_test
+    src/lane_follow_test.cpp
+    src/pigpio_vehicle.cpp
+)
+target_include_directories(xtnetrc_lane_follow_test PRIVATE include)
+target_link_libraries(xtnetrc_lane_follow_test PRIVATE
+    xtnetrc_lane_corridor
+    ${CMAKE_DL_LIBS}
+)
+target_compile_options(xtnetrc_lane_follow_test PRIVATE
+    $<$<CXX_COMPILER_ID:AppleClang,Clang,GNU>:-Wall;-Wextra;-Wpedantic>
+)
+set_target_properties(xtnetrc_lane_follow_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
 target_include_directories(xtnetrc_visual_distance_test PRIVATE include)
 target_link_libraries(xtnetrc_visual_distance_test PRIVATE
     xtnetrc_visual_odometry

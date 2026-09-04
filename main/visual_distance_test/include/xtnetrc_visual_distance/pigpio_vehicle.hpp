@@ -12,6 +12,7 @@ public:
     PigpioVehicle& operator=(const PigpioVehicle&) = delete;
 
     void initialize(int steering_center_pwm);
+    void set_steering_pwm(int steering_pwm);
     void drive_forward(int motor_pwm);
     void stop() noexcept;
 
