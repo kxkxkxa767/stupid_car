@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""在去畸变图像中点选地面矩形，生成像素到车辆米制坐标的单应矩阵。"""
+"""在原始或去畸变图像中点选地面矩形，生成车辆米制单应矩阵。"""
 
 import argparse
 import json
@@ -29,6 +29,10 @@ def parse_args() -> argparse.Namespace:
         "--raw-pixel-homography", action="store_true",
         help="直接在原始像素上拟合地面单应矩阵，不对中央区内参向画面边缘外推",
     )
+    parser.add_argument("--metadata", type=Path,
+                        help="相机身份、测量来源和验证范围 JSON，存入 calibration_metadata")
+    parser.add_argument("--points-preview", type=Path,
+                        help="保存带点序和车辆坐标的参考图，不改变拟合用像素")
     return parser.parse_args()
 
 
@@ -37,6 +41,9 @@ def main() -> None:
     if not (0.0 < args.near_m < args.far_m and args.half_width_m > 0.0):
         raise SystemExit("地面矩形尺寸必须满足 0 < near < far 且 half-width > 0")
     intrinsics = json.loads(args.intrinsics.read_text())
+    metadata = json.loads(args.metadata.read_text()) if args.metadata else None
+    if metadata is not None and not isinstance(metadata, dict):
+        raise SystemExit("--metadata 必须是 JSON 对象")
     image = cv2.imread(str(args.image))
     if image is None:
         raise SystemExit(f"无法读取图片: {args.image}")
@@ -122,6 +129,32 @@ def main() -> None:
             if args.raw_pixel_homography else intrinsics["dist_coeffs"]
         ),
     })
+    if args.raw_pixel_homography:
+        # 旧字段名保留给现有 C++ 消费者；raw 模式下两个字段均为原始图像像素。
+        result["image_points_raw_px"] = image_points.tolist()
+    if metadata is not None:
+        result["calibration_metadata"] = metadata
+    if args.points_preview:
+        preview = undistorted.copy()
+        cv2.putText(preview, f"Ground reference | {actual[0]}x{actual[1]} | x forward, y left (m)",
+                    (10, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.44, (0, 255, 255), 1,
+                    cv2.LINE_AA)
+        for index, (pixel, ground) in enumerate(zip(image_points, vehicle_points)):
+            p = tuple(round(float(value)) for value in pixel)
+            label = f"{index + 1}: ({ground[0]:.2f}, {ground[1]:+.2f})m"
+            text_width = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.42, 1)[0][0]
+            label_x = p[0] - text_width - 16 if index % 2 == 0 else p[0] + 16
+            label_x = max(4, min(label_x, actual[0] - text_width - 4))
+            label_y = max(40, min(p[1] + (32 if index < 2 else -26), actual[1] - 8))
+            cv2.line(preview, p, (label_x + text_width // 2, label_y - 5),
+                     (0, 255, 255), 1, cv2.LINE_AA)
+            cv2.circle(preview, p, 3, (0, 0, 255), -1)
+            cv2.circle(preview, p, 5, (255, 255, 255), 1)
+            cv2.putText(preview, label, (label_x, label_y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 255, 255), 1, cv2.LINE_AA)
+        args.points_preview.parent.mkdir(parents=True, exist_ok=True)
+        if not cv2.imwrite(str(args.points_preview), preview):
+            raise SystemExit(f"无法保存点位预览: {args.points_preview}")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n")
     print(f"标定点最大回代误差: {max_error:.8f} m")

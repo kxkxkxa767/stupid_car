@@ -43,23 +43,35 @@
     "underside_contact_span": "1787833197317.jpg"
   },
   "camera_calibration": {
-    "date": "2026-08-31",
+    "date": "2026-09-06",
+    "camera_role": "front_fixed",
+    "camera_model": "H65 USB CAMERA",
+    "camera_device_by_id": "/dev/v4l/by-id/usb-H65_USB_CAMERA_H65_USB_CAMERA-video-index0",
+    "camera_index_at_calibration": 2,
+    "camera_identity_note": "User confirmed displayed H65 image. Resolve by-id on each boot; historical camera 0 is not a stable device identity. Device metadata is not enforced by the current C++ loader.",
     "resolution": [640, 480],
     "intrinsics_file": "../camera_calibration/output/camera_intrinsics.json",
+    "intrinsics_date": "2026-08-31",
+    "intrinsics_device_association_verified": false,
+    "intrinsics_used_for_ground_fit": false,
     "ground_projection_file": "../camera_calibration/output/ground_projection.json",
     "intrinsics_frames_used": 15,
     "rms_reprojection_error_px": 0.2345,
     "max_view_rms_error_px": 0.3666,
     "ground_projection_model": "raw_pixel_homography",
     "ground_pose_recalibrated_after_camera_fix": "2026-08-31",
-    "ground_reference_image": "../camera_calibration/captures/ground_reference_after_camera_fix_640x480.jpg",
+    "ground_pose_recalibrated_live": "2026-09-06",
+    "ground_reference_image": "../camera_calibration/captures/ground_reference_fixed_h65_150_200_2026-09-06_r2_640x480.png",
     "previous_ground_projection_backup": "../camera_calibration/output/ground_projection_before_camera_fix_2026-08-31.json",
+    "ground_coordinate_measurement_corrected": "2026-09-06",
+    "ground_projection_before_distance_correction_backup": "../camera_calibration/output/ground_projection_before_distance_correction_2026-09-06.json",
     "ground_reference_points_m": [
-      [0.70, 0.25],
-      [0.70, -0.25],
-      [1.20, 0.25],
-      [1.20, -0.25]
+      [1.50, 0.25],
+      [1.50, -0.25],
+      [2.00, 0.25],
+      [2.00, -0.25]
     ],
+    "ground_validation_status": "four_point_fit_only_no_independent_metric_validation",
     "valid_only_while_camera_pose_and_resolution_are_unchanged": true
   },
   "camera_gimbal": {

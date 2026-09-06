@@ -1,0 +1,22 @@
+{
+  "date": "2026-09-06",
+  "camera_role": "front_fixed",
+  "camera_model": "H65 USB CAMERA",
+  "camera_device_by_id": "/dev/v4l/by-id/usb-H65_USB_CAMERA_H65_USB_CAMERA-video-index0",
+  "device_at_capture": "/dev/video2",
+  "identity_confirmation": "User confirmed the last displayed H65 image as the camera to calibrate; no occlusion test was performed.",
+  "source_capture": "New V4L2 MJPG frame at native 640x480; saved as lossless PNG without resizing or cropping.",
+  "source_image_sha256": "eef824d168990d25d9768ec322781900a9b8f9e6f695edda219014fc889b46bc",
+  "coordinate_origin": "rear_axle_center",
+  "point_definition": "Ground-contact corner joining the bag face toward the vehicle and the face toward the rectangle interior.",
+  "point_order": ["near_left", "near_right", "far_left", "far_right"],
+  "measurement_source": "User supplied near=1.50m, far=2.00m from rear axle; left/right offsets +/-0.25m from vehicle centerline.",
+  "pixel_selection_method": "Manual visual selection of integer pixels from current frame; enlarged crop used only for inspection.",
+  "assumed_pixel_uncertainty_for_sensitivity_px": 2,
+  "pixel_uncertainty_note": "Illustrative perturbation, not a measured error bound or confidence interval.",
+  "intrinsics_status": "Historical 2026-08-31 intrinsics retained for file-format compatibility; association with H65 not independently verified; not used for this raw-pixel fit.",
+  "intrinsics_used_for_ground_fit": false,
+  "control_point_extent_m": {"x_min": 1.5, "x_max": 2.0, "y_min": -0.25, "y_max": 0.25},
+  "validation_status": "four_point_fit_only_no_independent_metric_validation",
+  "limitations": "Ground plane only. Camera pose, lens/focus, capture resolution and crop must remain unchanged. Outside the control-point quadrilateral is extrapolation; do not reuse earlier visual-distance multipliers or steering-angle estimates without revalidation."
+}

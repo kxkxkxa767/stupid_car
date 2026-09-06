@@ -98,38 +98,38 @@
   },
   "image_to_vehicle_ground_homography": [
     [
-      -0.0002942416797353919,
-      -0.0005695604194110942,
-      -0.19014136992144778
+      -0.0002272395903903054,
+      -0.0005527539127268396,
+      -0.23012934009050373
     ],
     [
-      0.0012499247289442029,
-      6.317242946156657e-05,
-      -0.42143575625816476
+      0.001245739087832009,
+      2.3297988307345048e-05,
+      -0.4100684794692912
     ],
     [
-      -0.00022317269659112964,
-      -0.003783165618983504,
+      -0.00015149306026020435,
+      -0.0038743371375433307,
       1.0
     ]
   ],
-  "ground_reference_image": "main/camera_calibration/captures/ground_reference_fixed_h65_150_200_2026-09-06_r2_640x480.png",
+  "ground_reference_image": "main/camera_calibration/captures/ground_reference_fixed_h65_150_200_2026-09-06_640x480.png",
   "image_points_undistorted_px": [
     [
       260.0,
       329.0
     ],
     [
-      386.0,
-      328.0
+      390.0,
+      329.0
     ],
     [
       277.0,
       307.0
     ],
     [
-      369.0,
-      305.0
+      372.0,
+      306.0
     ]
   ],
   "vehicle_points_m": [
@@ -150,7 +150,7 @@
       -0.25
     ]
   ],
-  "calibration_max_error_m": 1.1270951119217139e-15,
+  "calibration_max_error_m": 4.449557262054371e-16,
   "projection_model": "raw_pixel_homography",
   "projection_dist_coeffs": [
     0.0,
@@ -165,28 +165,27 @@
       329.0
     ],
     [
-      386.0,
-      328.0
+      390.0,
+      329.0
     ],
     [
       277.0,
       307.0
     ],
     [
-      369.0,
-      305.0
+      372.0,
+      306.0
     ]
   ],
   "calibration_metadata": {
     "date": "2026-09-06",
-    "capture_revision": 2,
     "camera_role": "front_fixed",
     "camera_model": "H65 USB CAMERA",
     "camera_device_by_id": "/dev/v4l/by-id/usb-H65_USB_CAMERA_H65_USB_CAMERA-video-index0",
     "device_at_capture": "/dev/video2",
     "identity_confirmation": "User confirmed the last displayed H65 image as the camera to calibrate; no occlusion test was performed.",
-    "source_capture": "New V4L2 MJPG frame captured after user requested a redo, at native 640x480; saved as lossless PNG without resizing or cropping.",
-    "source_image_sha256": "be7064aceba74736edc3a89c2dcf673d108be937eaa659535b1403d285e88975",
+    "source_capture": "New V4L2 MJPG frame at native 640x480; saved as lossless PNG without resizing or cropping.",
+    "source_image_sha256": "eef824d168990d25d9768ec322781900a9b8f9e6f695edda219014fc889b46bc",
     "coordinate_origin": "rear_axle_center",
     "point_definition": "Ground-contact corner joining the bag face toward the vehicle and the face toward the rectangle interior.",
     "point_order": [
@@ -196,7 +195,7 @@
       "far_right"
     ],
     "measurement_source": "User supplied near=1.50m, far=2.00m from rear axle; left/right offsets +/-0.25m from vehicle centerline.",
-    "pixel_selection_method": "Manual visual reselection of integer pixels from the new frame; enlarged crop used only for inspection.",
+    "pixel_selection_method": "Manual visual selection of integer pixels from current frame; enlarged crop used only for inspection.",
     "assumed_pixel_uncertainty_for_sensitivity_px": 2,
     "pixel_uncertainty_note": "Illustrative perturbation, not a measured error bound or confidence interval.",
     "intrinsics_status": "Historical 2026-08-31 intrinsics retained for file-format compatibility; association with H65 not independently verified; not used for this raw-pixel fit.",
