@@ -1,0 +1,34 @@
+{
+  "board": {
+    "driver": "raspberry_pi_pigpio",
+    "steering_gpio": 12, "motor_gpio": 13,
+    "steering_hz": 50, "steering_range": 1000,
+    "motor_hz": 200, "motor_range": 40000,
+    "steering_min": 70, "steering_center": 72, "steering_max": 73,
+    "motor_neutral": 10000, "motor_min": 10200, "motor_max": 11200,
+    "serial_device": "/dev/ttyUSB0", "serial_baud": 9600
+  },
+  "control": {
+    "target_speed_mps": 0.20,
+    "maximum_run_s": 5.0,
+    "maximum_distance_m": 3.0,
+    "lane_timeout_s": 0.25,
+    "gps_timeout_s": 1.0,
+    "speed_pi_period_s": 1.0,
+    "steering_pwm_per_rad": 122.45,
+    "feedforward_speed_mps": 0.20,
+    "feedforward_pwm": 11100,
+    "actuator_calibration_verified": 0,
+    "ground_calibration_verified": 0,
+    "speed_pi": {
+      "kp_pwm_per_mps": 12.0,
+      "ki_pwm_per_m": 3.0,
+      "maximum_trim_pwm": 8.0,
+      "integral_limit_m": 1.5
+    }
+  },
+  "files": {
+    "motion": "../motion_control/config/motion_default.json",
+    "ground_projection": "../camera_calibration/output/ground_projection.json"
+  }
+}

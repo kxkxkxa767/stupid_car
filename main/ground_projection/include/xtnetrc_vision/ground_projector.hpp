@@ -18,6 +18,10 @@ struct GroundProjectionConfig {
     cv::Matx33d camera_matrix{cv::Matx33d::eye()};
     std::vector<double> dist_coeffs;
     cv::Matx33d image_to_vehicle_ground{cv::Matx33d::eye()};
+    std::string projection_model;
+    std::string camera_role;
+    std::string camera_model;
+    std::string camera_device_by_id;
 
     void validate() const;
 };
@@ -30,7 +34,7 @@ class GroundProjector {
 public:
     explicit GroundProjector(GroundProjectionConfig config);
 
-    // 输入必须来自与标定相同分辨率的原始画面。函数先去畸变，再做地面单应变换。
+    // 输入必须是标定分辨率的原图。raw_pixel_homography 不做畸变逆解。
     [[nodiscard]] std::vector<GroundPoint> project(
         const std::vector<cv::Point2f>& image_points,
         cv::Size image_size) const;

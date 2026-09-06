@@ -1,6 +1,15 @@
 # XT-NetRC Python + C++ / OpenCV 工程
 
-这个目录用于 XT-NetRC 智能车的视觉开发。当前以 Python + OpenCV 作为主要视觉入口，同时保留 C++ 版本用于性能对比和未来硬件控制。第一阶段只做摄像头或视频的车道检测，并输出“模拟舵机角度”；默认不会给车辆发送 PWM，避免在 GPIO 编号和电调参数尚未核实前误启动车轮。
+这个目录用于 XT-NetRC 智能车开发。Python/OpenCV 保留作标定与视觉试验；C++17
+统一入口 `xtnetrc_car_runtime` 已连接循迹、运动控制、GPS 速度 PI 和共享硬件驱动。
+所有运行入口默认不输出电机信号，实车参数与比赛能力仍待验证。
+
+## 当前框架入口（2026-09-06）
+
+先阅读 [统一运行框架与移植说明](main/car_runtime/README.md)。它包含相机身份绑定、
+显式降级运行、配置、独立停车保护、旧命令迁移和完整测试命令。
+固定相机以 H65 by-id 为准，不能把历史 camera 0 永久等同于固定镜头。
+只在本地编译，部署到 `/home/5G/xtnetrc_staging/`；不得覆盖原工程 `/home/5G/5G`。
 
 ## 已确认的原车信息
 
@@ -17,6 +26,10 @@ OpenCV/python/        Python 视觉包与测试
 PWM/                  后续 pigpio 执行器适配层
 main/vision/          C++ OpenCV 视觉主程序和测试
 main/motion_control/  C++ Pure Pursuit 运动控制核心
+main/car_runtime/     统一运行入口、米制控制链与离线集成测试
+main/hardware/        共享车辆/串口驱动接口与独立命令看门狗
+main/camera_io/       标定相机身份校验、有限等待 V4L2 与离线图像源
+main/gps_speed_control/ WIT 解析、GPS 估计、速度 PI、只读诊断
 main/camera_gimbal/   C++ 双轴摄像头云台控制与实测安全限位
 main/camera_calibration/ 相机标定照片、说明与输出参数
 main/ground_projection/ C++ 像素去畸变及车辆米制坐标投影
@@ -81,7 +94,7 @@ PYTHONPATH=OpenCV/python .venv/bin/python -m xtnetrc_vision --video /绝对路�
 
 ## 运动控制核心（Pure Pursuit）
 
-独立目录 `main/motion_control/` 已使用 C++17 实现不接硬件的 Pure Pursuit 路径跟踪、按曲率降速、置信度迟滞与恢复确认、失线立即停车、转角/速度变化率限制、路径输入检查和车辆可实现曲率检查。目前不与正式视觉主函数连接，也不依赖 Python 或 OpenCV。车辆坐标约定为 `x` 向前、`y` 向左，单位为米；正转角代表左转。
+独立目录 `main/motion_control/` 已使用 C++17 实现不接硬件的 Pure Pursuit 路径跟踪、按曲率降速、置信度迟滞与恢复确认、失线立即停车、转角/速度变化率限制、路径输入检查和车辆可实现曲率检查。现在由 `car_runtime` 接入米制循迹结果；核心本身不依赖 Python 或 OpenCV。车辆坐标约定为 `x` 向前、`y` 向左，单位为米；正转角代表左转。
 
 运行合成路径演示：
 
@@ -183,40 +196,10 @@ g++ --version
 cmake --version
 ```
 
-Python 视觉入口优先使用树莓派系统包，避免在车上编译大型 wheel：
-
-```bash
-sudo apt update
-sudo apt install python3-opencv python3-numpy
-cd /home/5G/5G
-PYTHONPATH=OpenCV/python python3 -m xtnetrc_vision --camera 0
-```
-
-如果没有 OpenCV，再安装树莓派系统提供的 4.x：
-
-```bash
-sudo apt update
-sudo apt install build-essential cmake pkg-config libopencv-dev
-```
-
-在 Mac 上按原 SD 卡结构合并部署：
-
-```bash
-cd /Users/yuhaojin/Documents/5G_opencv
-./scripts/deploy_to_raspberry_pi.sh 5G@pi.local /home/5G/5G
-```
-
-部署脚本不使用 `--delete`，只合并新模块，不会删除原车 `main/studyroad` 等历史程序。然后在树莓派上单独编译视觉子工程：
-
-```bash
-cd /home/5G/5G/main/vision
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-./build/xt_netrc_vision --camera 0
-```
-
-有两只 USB 摄像头时，也要尝试 `--camera 1` 或 `--camera 2`。
+保留原系统依赖与已验证程序，不在原工程内安装、编译或合并部署。
+Mac 使用只读同步的 sysroot 交叉编译，产物仅部署到 staging。
+统一入口及只读命令见 [运行框架说明](main/car_runtime/README.md)。
+有两只 USB 摄像头时，核对 by-id 和实际画面，不要靠尝试数字编号选择自动驾驶相机。
 
 ## Mac：交叉编译树莓派程序
 

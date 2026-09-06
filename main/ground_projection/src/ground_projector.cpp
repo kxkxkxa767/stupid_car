@@ -103,6 +103,10 @@ namespace {
 }  // namespace
 
 void GroundProjectionConfig::validate() const {
+    if (!projection_model.empty() && projection_model != "raw_pixel_homography" &&
+        projection_model != "undistorted_pixel_homography") {
+        throw std::invalid_argument("unsupported ground projection model");
+    }
     if (image_width <= 0 || image_height <= 0) {
         throw std::invalid_argument("calibration image size must be positive");
     }
@@ -121,6 +125,8 @@ void GroundProjectionConfig::validate() const {
         if (!std::isfinite(value)) {
             throw std::invalid_argument("distortion values must be finite");
         }
+        if (projection_model == "raw_pixel_homography" && value != 0.0)
+            throw std::invalid_argument("raw-pixel projection must use zero projection distortion");
     }
 }
 
@@ -132,6 +138,13 @@ GroundProjectionConfig load_ground_projection_json(const std::string& path) {
     GroundProjectionConfig config;
     config.image_width = static_cast<int>(file["image_width"]);
     config.image_height = static_cast<int>(file["image_height"]);
+    config.projection_model = static_cast<std::string>(file["projection_model"]);
+    const auto metadata = file["calibration_metadata"];
+    if (!metadata.empty()) {
+        config.camera_role = static_cast<std::string>(metadata["camera_role"]);
+        config.camera_model = static_cast<std::string>(metadata["camera_model"]);
+        config.camera_device_by_id = static_cast<std::string>(metadata["camera_device_by_id"]);
+    }
     config.camera_matrix = read_matrix3x3(file["camera_matrix"], "camera_matrix");
     config.image_to_vehicle_ground = read_matrix3x3(
         file["image_to_vehicle_ground_homography"],
@@ -173,8 +186,9 @@ std::vector<GroundPoint> GroundProjector::project(
     std::vector<GroundPoint> result;
     result.reserve(image_points.size());
     for (const auto& point : image_points) {
-        const cv::Point2d undistorted =
-            undistort_point(point, config_.camera_matrix, config_.dist_coeffs);
+        const cv::Point2d undistorted = config_.projection_model == "raw_pixel_homography"
+            ? cv::Point2d(point.x, point.y)
+            : undistort_point(point, config_.camera_matrix, config_.dist_coeffs);
         const cv::Vec3d homogeneous = config_.image_to_vehicle_ground *
             cv::Vec3d(undistorted.x, undistorted.y, 1.0);
         if (std::abs(homogeneous[2]) < 1e-12) {

@@ -16,22 +16,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(xtnetrc_gps_speed PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# 只读串口诊断程序，不链接 GPIO/pigpio，也不包含任何电机输出代码。
+# Only the serial adapter object is linked; monitor contains no actuator calls.
+if(NOT TARGET xtnetrc_hardware)
+    add_subdirectory(../hardware hardware_build)
+endif()
 add_executable(xtnetrc_gps_speed_monitor src/monitor.cpp)
-target_link_libraries(xtnetrc_gps_speed_monitor PRIVATE xtnetrc_gps_speed)
+target_link_libraries(xtnetrc_gps_speed_monitor PRIVATE xtnetrc_gps_speed xtnetrc_hardware)
 
-# 明确双重确认后才会输出电机 PWM 的短距离实车测试程序。
-add_executable(xtnetrc_gps_distance_test
-    src/distance_test.cpp
-    ../visual_distance_test/src/pigpio_vehicle.cpp
-)
-target_include_directories(xtnetrc_gps_distance_test PRIVATE
-    ../visual_distance_test/include
-)
-target_link_libraries(xtnetrc_gps_distance_test PRIVATE
-    xtnetrc_gps_speed
-    ${CMAKE_DL_LIBS}
-)
+# Compatibility command: old fixed-throttle experiment is retired.
+add_executable(xtnetrc_gps_distance_test src/distance_test.cpp)
 
 include(CTest)
 if(BUILD_TESTING)

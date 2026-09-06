@@ -8,6 +8,7 @@ namespace xtnetrc::visual_distance {
 
 struct LaneCorridorResult {
     bool valid{false};
+    double reference_x_m{1.10};  // center_y_m and boundary y values are measured here.
     double left_y_m{0.0};
     double right_y_m{0.0};
     double center_y_m{0.0};

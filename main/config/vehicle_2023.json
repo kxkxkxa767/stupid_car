@@ -48,7 +48,7 @@
     "camera_model": "H65 USB CAMERA",
     "camera_device_by_id": "/dev/v4l/by-id/usb-H65_USB_CAMERA_H65_USB_CAMERA-video-index0",
     "camera_index_at_calibration": 2,
-    "camera_identity_note": "User confirmed displayed H65 image. Resolve by-id on each boot; historical camera 0 is not a stable device identity. Device metadata is not enforced by the current C++ loader.",
+    "camera_identity_note": "User confirmed displayed H65 image. Resolve by-id on each boot; historical camera 0 is not a stable device identity. The unified C++ runtime checks calibration identity and resolution; a mismatched identity requires explicit degraded-mode opt-in, never a silent camera fallback.",
     "resolution": [640, 480],
     "intrinsics_file": "../camera_calibration/output/camera_intrinsics.json",
     "intrinsics_date": "2026-08-31",

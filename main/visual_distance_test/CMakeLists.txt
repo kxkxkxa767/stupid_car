@@ -1,78 +1,35 @@
 cmake_minimum_required(VERSION 3.20)
 project(xtnetrc_visual_distance_test LANGUAGES CXX)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc video videoio)
-
-add_library(xtnetrc_visual_odometry STATIC
-    src/visual_odometry.cpp
-    ../ground_projection/src/ground_projector.cpp
-)
-target_include_directories(xtnetrc_visual_odometry PUBLIC
-    include
-    ../ground_projection/include
-)
-target_link_libraries(xtnetrc_visual_odometry PUBLIC ${OpenCV_LIBS})
-target_compile_options(xtnetrc_visual_odometry PRIVATE
-    $<$<CXX_COMPILER_ID:AppleClang,Clang,GNU>:-Wall;-Wextra;-Wpedantic>
-)
-
-add_executable(xtnetrc_visual_distance_test
-    src/main.cpp
-    src/pigpio_vehicle.cpp
-)
-
-add_library(xtnetrc_lane_corridor STATIC
-    src/lane_corridor.cpp
-)
-target_include_directories(xtnetrc_lane_corridor PUBLIC
-    include
-    ../ground_projection/include
-)
-target_link_libraries(xtnetrc_lane_corridor PUBLIC
-    xtnetrc_visual_odometry
-    ${OpenCV_LIBS}
-)
-
-add_executable(xtnetrc_lane_follow_test
-    src/lane_follow_test.cpp
-    src/pigpio_vehicle.cpp
-)
-target_include_directories(xtnetrc_lane_follow_test PRIVATE include)
-target_link_libraries(xtnetrc_lane_follow_test PRIVATE
-    xtnetrc_lane_corridor
-    ${CMAKE_DL_LIBS}
-)
-target_compile_options(xtnetrc_lane_follow_test PRIVATE
-    $<$<CXX_COMPILER_ID:AppleClang,Clang,GNU>:-Wall;-Wextra;-Wpedantic>
-)
-set_target_properties(xtnetrc_lane_follow_test PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
-)
-target_include_directories(xtnetrc_visual_distance_test PRIVATE include)
-target_link_libraries(xtnetrc_visual_distance_test PRIVATE
-    xtnetrc_visual_odometry
-    ${CMAKE_DL_LIBS}
-)
-target_compile_options(xtnetrc_visual_distance_test PRIVATE
-    $<$<CXX_COMPILER_ID:AppleClang,Clang,GNU>:-Wall;-Wextra;-Wpedantic>
-)
-set_target_properties(xtnetrc_visual_distance_test PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
-)
-
+if(NOT TARGET xtnetrc_ground_projection)
+    add_subdirectory(../ground_projection ground_projection_build)
+endif()
+if(NOT TARGET xtnetrc_camera_io)
+    add_subdirectory(../camera_io camera_io_build)
+endif()
+find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc video)
+add_library(xtnetrc_visual_odometry STATIC src/visual_odometry.cpp)
+target_include_directories(xtnetrc_visual_odometry PUBLIC include)
+target_link_libraries(xtnetrc_visual_odometry PUBLIC xtnetrc_ground_projection opencv_imgproc opencv_video)
+add_library(xtnetrc_lane_corridor STATIC src/lane_corridor.cpp)
+target_include_directories(xtnetrc_lane_corridor PUBLIC include)
+target_link_libraries(xtnetrc_lane_corridor PUBLIC xtnetrc_ground_projection opencv_imgproc)
+add_executable(xtnetrc_visual_distance_test src/main.cpp)
+target_link_libraries(xtnetrc_visual_distance_test PRIVATE xtnetrc_visual_odometry xtnetrc_camera_io)
+set_target_properties(xtnetrc_visual_distance_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+foreach(target xtnetrc_visual_odometry xtnetrc_lane_corridor xtnetrc_visual_distance_test)
+    target_compile_options(${target} PRIVATE $<$<CXX_COMPILER_ID:AppleClang,Clang,GNU>:-Wall;-Wextra;-Wpedantic>)
+endforeach()
 include(CTest)
 if(BUILD_TESTING)
     add_executable(xtnetrc_visual_odometry_test tests/visual_odometry_test.cpp)
-    target_link_libraries(xtnetrc_visual_odometry_test PRIVATE
-        xtnetrc_visual_odometry
-    )
+    target_link_libraries(xtnetrc_visual_odometry_test PRIVATE xtnetrc_visual_odometry)
     target_compile_definitions(xtnetrc_visual_odometry_test PRIVATE
-        XTNETRC_GROUND_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../camera_calibration/output/ground_projection.json"
-    )
-    add_test(NAME xtnetrc_visual_odometry_test
-             COMMAND xtnetrc_visual_odometry_test)
+        XTNETRC_GROUND_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../camera_calibration/output/ground_projection.json")
+    add_test(NAME xtnetrc_visual_odometry_test COMMAND xtnetrc_visual_odometry_test)
+endif()
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    add_subdirectory(../car_runtime car_runtime_build)
 endif()

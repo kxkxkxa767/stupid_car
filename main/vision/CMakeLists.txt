@@ -6,16 +6,21 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(XTNETRC_BUILD_GUI "Build desktop vision GUI applications" ON)
+find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc)
+add_library(xtnetrc_lane_detector STATIC src/lane_detector.cpp)
+target_include_directories(xtnetrc_lane_detector PUBLIC include)
+target_link_libraries(xtnetrc_lane_detector PUBLIC opencv_core opencv_imgproc)
+if(XTNETRC_BUILD_GUI)
 find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc highgui videoio imgcodecs)
 
 set(XTNETRC_VISION_SOURCES
     src/main.cpp
-    src/lane_detector.cpp
 )
 
 function(xtnetrc_configure_vision_target target_name)
     target_include_directories(${target_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-    target_link_libraries(${target_name} PRIVATE ${OpenCV_LIBS})
+    target_link_libraries(${target_name} PRIVATE xtnetrc_lane_detector ${OpenCV_LIBS})
     target_compile_options(${target_name} PRIVATE
         $<$<CXX_COMPILER_ID:AppleClang,Clang,GNU>:-Wall;-Wextra;-Wpedantic>
     )
@@ -61,14 +66,15 @@ if(APPLE)
     )
 endif()
 
+endif() # XTNETRC_BUILD_GUI
+
 include(CTest)
 if(BUILD_TESTING)
     add_executable(xt_netrc_selftest
         tests/lane_detector_test.cpp
-        src/lane_detector.cpp
     )
     target_include_directories(xt_netrc_selftest PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-    target_link_libraries(xt_netrc_selftest PRIVATE ${OpenCV_LIBS})
+    target_link_libraries(xt_netrc_selftest PRIVATE xtnetrc_lane_detector)
     target_compile_options(xt_netrc_selftest PRIVATE
         $<$<CXX_COMPILER_ID:AppleClang,Clang,GNU>:-Wall;-Wextra;-Wpedantic>
     )

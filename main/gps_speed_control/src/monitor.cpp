@@ -1,20 +1,15 @@
 #include "xtnetrc_speed/speed_loop.hpp"
 #include "xtnetrc_speed/wit_sensor.hpp"
+#include "xtnetrc_hardware/byte_source.hpp"
 
-#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <cstring>
-#include <fcntl.h>
 #include <iomanip>
 #include <iostream>
 #include <optional>
-#include <poll.h>
 #include <stdexcept>
 #include <string>
-#include <termios.h>
-#include <unistd.h>
 #include <vector>
 
 namespace speed = xtnetrc::speed;
@@ -78,31 +73,6 @@ Options parse_options(const int argc, char* argv[]) {
     return options;
 }
 
-int open_serial(const std::string& port) {
-    const int descriptor = ::open(port.c_str(), O_RDONLY | O_NOCTTY | O_NONBLOCK);
-    if (descriptor < 0) {
-        throw std::runtime_error("cannot open " + port + ": " + std::strerror(errno));
-    }
-    termios settings{};
-    if (tcgetattr(descriptor, &settings) != 0) {
-        const std::string message = std::strerror(errno);
-        ::close(descriptor);
-        throw std::runtime_error("tcgetattr failed: " + message);
-    }
-    cfmakeraw(&settings);
-    cfsetispeed(&settings, B9600);
-    cfsetospeed(&settings, B9600);
-    settings.c_cflag |= CLOCAL | CREAD;
-    settings.c_cflag &= ~CRTSCTS;
-    if (tcsetattr(descriptor, TCSANOW, &settings) != 0) {
-        const std::string message = std::strerror(errno);
-        ::close(descriptor);
-        throw std::runtime_error("tcsetattr failed: " + message);
-    }
-    tcflush(descriptor, TCIFLUSH);
-    return descriptor;
-}
-
 double seconds_since(const std::chrono::steady_clock::time_point start) {
     return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
 }
@@ -116,7 +86,7 @@ double forward_acceleration(const speed::Vector3& value, const Options& options)
 
 int main(int argc, char* argv[]) try {
     const Options options = parse_options(argc, argv);
-    const int descriptor = open_serial(options.port);
+    auto serial = xtnetrc::hardware::open_serial(options.port, 9600);
     speed::WitFrameParser parser;
     speed::GpsImuSpeedEstimator estimator;
     const auto start = std::chrono::steady_clock::now();
@@ -131,16 +101,11 @@ int main(int argc, char* argv[]) try {
               << options.forward_axis << '\n';
 
     while (seconds_since(start) < options.duration_s) {
-        pollfd item{descriptor, POLLIN, 0};
-        const int result = ::poll(&item, 1, 200);
-        if (result < 0 && errno != EINTR) {
-            throw std::runtime_error("poll failed: " + std::string(std::strerror(errno)));
-        }
         std::uint8_t buffer[256];
-        const ssize_t count = ::read(descriptor, buffer, sizeof(buffer));
+        const auto count = serial->read(buffer, sizeof(buffer), std::chrono::milliseconds(200));
         const double now_s = seconds_since(start);
         if (count > 0) {
-            for (ssize_t index = 0; index < count; ++index) {
+            for (std::size_t index = 0; index < count; ++index) {
                 const auto type = parser.feed(buffer[index]);
                 if (!type) {
                     continue;
@@ -192,7 +157,6 @@ int main(int argc, char* argv[]) try {
             last_print_s = now_s;
         }
     }
-    ::close(descriptor);
     return 0;
 } catch (const std::exception& error) {
     std::cerr << "错误: " << error.what() << '\n';

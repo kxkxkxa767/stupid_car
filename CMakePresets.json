@@ -2,7 +2,7 @@
   "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 20,
+    "minor": 25,
     "patch": 0
   },
   "configurePresets": [
@@ -24,6 +24,17 @@
       "binaryDir": "${sourceDir}/build/mac-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "core-only",
+      "displayName": "Portable control tests (no OpenCV or motor adapter)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/core-only",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "XTNETRC_BUILD_VISION": "OFF",
+        "XTNETRC_WITH_PIGPIO": "OFF"
       }
     },
     {
@@ -49,6 +60,10 @@
     {
       "name": "raspberry-pi",
       "configurePreset": "raspberry-pi"
+    },
+    {
+      "name": "core-only",
+      "configurePreset": "core-only"
     }
   ]
 }
