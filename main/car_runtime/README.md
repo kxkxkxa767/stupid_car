@@ -158,8 +158,9 @@ bash scripts/build_pi_runtime_cross.sh
 - 新测试包括设备枚举互换、显式降级、分辨率拒绝、真实 OpenCV 合成跑道链路、
   GPS PI 对输出的影响、质量帧过期、重复帧、旧帧/未来时间、失线、超速、超时、
   停车锁存、驱动异常和独立看门狗。全部使用模拟输出，不碰实车。
-- 已准备 GitHub CI（有视觉/无视觉两套），但当前令牌缺少 `workflow` 权限。
-  经负责人确认，本次只上传代码和文档；CI 文件保留在本地，未上传、未在云端运行。
+- 已补充上传所需的 `workflow` 权限，GitHub CI 配置纳入本次提交。
+  每次 push / pull request 在 Ubuntu 24.04 上构建有视觉/无视觉两套并执行 CTest；
+  关闭 GUI 与 pigpio 后端，执行器测试使用模拟输出，不连接实车。
 
 Linux 采集适配依据：[V4L2 官方采集示例](https://docs.kernel.org/userspace-api/media/v4l/capture.c.html)、
 [缓冲区与时间戳语义](https://docs.kernel.org/userspace-api/media/v4l/buffer.html)。
@@ -173,4 +174,6 @@ Linux 采集适配依据：[V4L2 官方采集示例](https://docs.kernel.org/use
 - H65 r2 沙包参考图只读回放：没有可信双边界，未通过行驶预检，电机输出从未启用。
   这张图用于标定，不是比赛跑道检测通过的证据。
 - `git diff --check` 通过；当前内参和地面外参 JSON 的数值文件未修改。
-- 尚未进行新入口实机采集/架空/地面测试，也未运行 GitHub 云端 CI。
+- 尚未进行新入口实机采集/架空/地面测试。以上是本地验证结果；云端构建与测试
+  以 [GitHub Actions](https://github.com/kxkxkxa767/stupid_car/actions/workflows/ci.yml)
+  对应提交的运行结果为准，不代表实车验收。

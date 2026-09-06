@@ -1,0 +1,20 @@
+name: Offline build and safety tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        vision: ['ON', 'OFF']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ libopencv-dev
+      - name: Configure
+        run: cmake -S . -B build/ci -DCMAKE_BUILD_TYPE=Release -DXTNETRC_BUILD_GUI=OFF -DXTNETRC_BUILD_VISION=${{ matrix.vision }} -DXTNETRC_WITH_PIGPIO=OFF
+      - name: Build
+        run: cmake --build build/ci --parallel 2
+      - name: Test (mock actuators only)
+        run: ctest --test-dir build/ci --output-on-failure
