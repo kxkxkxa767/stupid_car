@@ -29,6 +29,7 @@ public:
 
 private:
     vision::GroundProjector projector_;
+    cv::Mat roi_;
     bool has_previous_{false};
     double previous_center_y_m_{0.0};
     double previous_width_m_{0.0};

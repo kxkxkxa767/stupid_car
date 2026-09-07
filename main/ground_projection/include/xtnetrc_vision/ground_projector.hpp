@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <optional>
 #include <vector>
 
 #include <opencv2/core.hpp>
@@ -10,6 +11,11 @@ namespace xtnetrc::vision {
 struct GroundPoint {
     double x_forward_m{0.0};
     double y_left_m{0.0};
+};
+
+struct GroundBounds {
+    double x_min{0.0}, x_max{0.0}, y_min{0.0}, y_max{0.0};
+    void validate() const;
 };
 
 struct GroundProjectionConfig {
@@ -22,6 +28,7 @@ struct GroundProjectionConfig {
     std::string camera_role;
     std::string camera_model;
     std::string camera_device_by_id;
+    std::optional<GroundBounds> calibrated_bounds;
 
     void validate() const;
 };
@@ -42,6 +49,9 @@ public:
     [[nodiscard]] const GroundProjectionConfig& config() const noexcept {
         return config_;
     }
+
+    // Native-pixel mask; invalid/horizon pixels are excluded, never resized.
+    [[nodiscard]] cv::Mat mask_for_bounds(const GroundBounds& bounds) const;
 
 private:
     GroundProjectionConfig config_;

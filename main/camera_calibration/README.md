@@ -1,150 +1,124 @@
 # XT-NetRC 相机与地面坐标标定
 
-本目录保存原始标定照片和最终参数。标定分辨率固定为 `640x480`；完成标定后，
-相机安装角度、焦距、分辨率或画面裁剪方式发生变化都必须重新标定。
+更新：2026-09-07，固定镜头重新调整角度并加固后。当前完成的是 **XWF 固定镜头的四点地面外参拟合**，
+不是新内参标定，也不是实车循迹或测距验收。
 
-## 当前摄像头身份（2026-09-06）
+## 1. 两个摄像头的身份和用途
 
-用户确认本次展示的 **H65 USB CAMERA** 画面用于固定摄像头标定。采集设备为：
+| 物理位置 | 设备 | 用途 | 本次室内枚举 |
+|---|---|---|---|
+| 车头固定镜头 | XWF 1080P PC Camera | 双实线循迹、固定姿态地面投影 | /dev/video0 |
+| 双轴云台镜头 | H65 USB CAMERA | 接入模型识别障碍物等目标 | /dev/video2 |
+
+用户查看当前 8080 实时画面后明确确认 XWF 是循迹镜头，SSH 核对预览进程确实
+打开了 XWF。没有保存完整的遮挡前后序列，不将此描述为“遮挡验证通过”。
+详见 [摄像头身份与用途](摄像头身份与用途.md)。
+
+固定镜头唯一入口：
 
 ```text
-/dev/v4l/by-id/usb-H65_USB_CAMERA_H65_USB_CAMERA-video-index0 -> /dev/video2
+/dev/v4l/by-id/usb-XWF_1080P_PC_Camera_XWF_1080P_PC_Camera_240122004-video-index0
 ```
 
-历史称呼 `camera 0` 不能当作固定 USB 编号。本次 `8080` 服务实际读取 XWF 1080P 的
-`/dev/video0`，不是本次 H65 标定源。以下 `--camera 2` 只适用于本次枚举结果；重启或
-拔插后先用 `readlink -f` 检查上述 by-id 路径，再使用对应编号。配置中的身份信息是记录，
-当前 C++ 加载器不会自动核实连接的相机身份。
+云台镜头：
 
-## 1. 打印 ChArUco 标定板
-
-打开 `output/pdf/XT-NetRC_Charuco相机标定板_A4.pdf`，选择“实际大小”或 `100%`，
-禁止“适合页面”。打印后用尺测量页面底部校验线，必须是 `100.0 mm`。
-棋盘参数为 5×7 格、格长 35 mm、标记长 25 mm、`DICT_5X5_100`。
-
-## 2. 在树莓派采集 20 张内参照片
-
-把标定板贴在平整硬板上。运行下面命令后，在镜头前缓慢改变标定板的距离、
-左右位置、俯仰和旋转角度；每张图都应看清棋盘，且不要只在画面中央。
-
-```bash
-mkdir -p /home/5G/xtnetrc_staging/calibration/intrinsics
-/home/5G/xtnetrc_staging/vision_cross/xt_netrc_vision \
-  --camera 2 --width 640 --height 480 \
-  --capture-dir /home/5G/xtnetrc_staging/calibration/intrinsics \
-  --capture-count 20 --capture-interval-ms 1500
+```text
+/dev/v4l/by-id/usb-H65_USB_CAMERA_H65_USB_CAMERA-video-index0
 ```
 
-下载到 Mac：
+同日室外与室内的 video0/video2 曾互换。**camera 0、camera 2 和端口 8080 都不是
+固定的物理身份**；8080 显示哪个镜头取决于启动命令。统一运行入口会核对外参
+元数据中的角色、by-id 和实际分辨率；不匹配必须显式选择降级，不能静默换镜头。
 
-```bash
-cd /Users/yuhaojin/Documents/5G_opencv
-rsync -av 5G@192.168.124.5:/home/5G/xtnetrc_staging/calibration/intrinsics/ \
-  main/camera_calibration/captures/intrinsics/
-```
+## 2. 当前四点外参
 
-计算内参：
+车辆原点：后轴中心；x 向前，y 向左；单位 m。用户最终确认近排 1.20 m、
+远排 1.70 m，左右接地内角距车身中线各 0.25 m。
+每点取沙包“朝向车辆的面”与“朝向矩形内部的面”相交的接地角，
+不是顶部角、外轮廓最内侧点或地面倒影。
 
-```bash
-.venv/bin/python scripts/calibrate_camera_intrinsics.py \
-  --images main/camera_calibration/captures/intrinsics \
-  --output main/camera_calibration/output/camera_intrinsics.json
-```
-
-建议至少 12 张有效图，RMS 重投影误差最好小于 0.5 px；超过 1.0 px 应重新采集。
-
-## 3. 标定地面到车辆坐标
-
-车辆坐标原点取后轴中心，`x` 向前、`y` 向左。保持车辆和摄像头不动，在地面
-标出以下四个点，并实际用卷尺核对。本次实车使用方形沙包，坐标点取每个沙包
-“朝向车辆的面”和“朝向矩形内部的面”相交的接地角：
-
-1. 近端左：`x=1.50 m, y=+0.25 m`
-2. 近端右：`x=1.50 m, y=-0.25 m`
-3. 远端左：`x=2.00 m, y=+0.25 m`
-4. 远端右：`x=2.00 m, y=-0.25 m`
-
-拍一张固定地面参考图：
-
-```bash
-/home/5G/xtnetrc_staging/vision_cross/xt_netrc_vision \
-  --camera 2 --width 640 --height 480 \
-  --snapshot /home/5G/xtnetrc_staging/calibration/ground_reference.jpg
-```
-
-下载后运行点选工具，严格按上述 1→4 顺序点击，按 `U` 撤销，按 Enter 保存：
-
-```bash
-.venv/bin/python scripts/calibrate_ground_plane.py \
-  --image main/camera_calibration/captures/ground_reference.jpg \
-  --intrinsics main/camera_calibration/output/camera_intrinsics.json \
-  --output main/camera_calibration/output/ground_projection.json \
-  --near-m 1.50 --far-m 2.00 --half-width-m 0.25 \
-  --raw-pixel-homography
-```
-
-`main/ground_projection` 的 C++ 库会严格检查画面分辨率，并按配置的投影模型将视觉
-模块输出的中心线像素点转换为车辆坐标系下的米制点。当前使用原始像素单应性，不再
-额外去畸变；模块仍不包含 GPIO/PWM 输出。
-
-## 当前实车标定结果（2026-09-06）
-
-- 以用户要求重新拍摄的第二帧为准，使用 H65 原生 `640x480` MJPG 解码帧，PNG 保存，
-  未裁剪或缩放：`captures/ground_reference_fixed_h65_150_200_2026-09-06_r2_640x480.png`。
-- 四个内角由新图人工选取，地面坐标由用户提供，严格以**后轴中心**为原点：
-
-| 点序 | 接地内角 | 原图像素 (u, v) | 车辆坐标 (x, y)，m |
+| 顺序 | 接地内角 | 原始像素 (u, v) | 车辆坐标 (x, y)，m |
 |---|---|---|---|
-| 1 | 近端左 | (260, 329) | (1.50, +0.25) |
-| 2 | 近端右 | (386, 328) | (1.50, -0.25) |
-| 3 | 远端左 | (277, 307) | (2.00, +0.25) |
-| 4 | 远端右 | (369, 305) | (2.00, -0.25) |
+| 1 | 近端左 | (166, 263) | (1.20, +0.25) |
+| 2 | 近端右 | (465, 265) | (1.20, -0.25) |
+| 3 | 远端左 | (217, 222) | (1.70, +0.25) |
+| 4 | 远端右 | (427, 225) | (1.70, -0.25) |
 
-- 正式投影参数：`output/ground_projection.json`，模型为 `raw_pixel_homography`。
-- 点位预览：`output/ground_reference_points_fixed_h65_2026-09-06_preview.png`；鸟瞰：
-  `output/ground_birdseye_preview.jpg`。
-- 采集来源、相机身份、原图 SHA-256 和验证范围保存在
-  `captures/ground_reference_fixed_h65_150_200_2026-09-06_r2_metadata.json`，同时嵌入正式
-  配置的 `calibration_metadata` 字段。
-- 四点回代小于 `0.000001 m` 只是拟合一致性；没有第五个独立实测点，尚未验证实际米制
-  精度。以原图纵向偏差 ±2 px 作示例，在四角附近可造成约 3～7 cm 的投影距离变化；
-  这不是实测误差界限或统计置信区间。
-- 参考点覆盖 `x=1.50～2.00 m`、`y=±0.25 m`；范围外为外推。近车区域的光流里程、
-  旧距离比例与旧视觉推算转角需要重新验证。鸟瞰仅对地面有效，沙包立面被拉长是正常的。
-- `output/camera_intrinsics.json` 保持历史原件：15 张、RMS `0.2345 px`、最差单张
-  `0.3666 px`。历史文件未记录设备 ID，尚不能独立确认它属于本次 H65；这些数值不是
-  本次 H65 内参质量结论。本次直接拟合原始像素、`projection_dist_coeffs` 全为 0，
-  不使用历史畸变参数；正式配置保留历史内参字段仅为兼容现有加载器。需要去畸变或
-  三维姿态解算时，应先为该设备核实或重新采集内参。
+- 当前参数：[ground_projection.json](output/ground_projection.json)，绑定固定 XWF。
+- 原图：[640×480 原始 JPEG](captures/ground_reference_fixed_xwf_120_170_2026-09-07_640x480.jpg)。
+  从已核实来源的 MJPEG 服务取得，无缩放、裁剪、去畸变或再次压缩。
+- [来源与身份元数据](captures/ground_reference_fixed_xwf_120_170_2026-09-07_metadata.json)
+  同时嵌入外参 JSON，记录原图 SHA-256、选点方法和适用范围。
+- [点位预览](output/ground_reference_points_fixed_xwf_2026-09-07_preview.png)。
+- [鸟瞰预览](output/ground_birdseye_fixed_xwf_2026-09-07_preview.jpg)。
+- 旧 H65 当前文件已原样备份为
+  [H65 身份纠正前备份](output/ground_projection_superseded_h65_role_correction_2026-09-06.json)，
+  不得将其中“front_fixed”历史标签当作新的身份结论。
 
-在项目根目录重现本次结果：
+- 昨天 XWF 旧角度外参已备份为
+  [XWF 调角前备份](output/ground_projection_superseded_xwf_before_tilt_2026-09-07.json)，
+  不再适用于今天的新角度。昨天的原图与预览保留作历史证据。
+
+## 3. 精度与适用限制
+
+本次采用 `raw_pixel_homography`，直接拟合原始像素，投影畸变系数全为 0。
+近端袋子有两个可见侧面，选取两侧面交线的接地顶点，不按轮廓极值盲选。
+四点最大回代误差约 **0.00000018 m**，仅表示四点拟合一致性。
+
+新角度使四点远离图像底边，近处地面明显增多；软袋边缘和阴影仍影响选点。固定当前单应矩阵，将各点沿像素轴偏移 ±3 px
+作敏感性示例，四角的最大地面变化分别约 **2.7、2.8、5.4、5.6 cm**。
+这不是实测误差界限，也不是置信区间。仍需用第五个独立地面点实测验证。
+
+参考覆盖 x=1.20～1.70 m、y=±0.25 m；四边形外为外推。鸟瞰只对地面有效，
+沙包和背景立面被拉长、图像覆盖不到的地方呈黑色/灰色都不能解释为地面测量。
+循迹保留原先 0.55～2.20 m、左右 ±0.75 m 的搜索范围，由当前外参生成原图掩码；
+不会把 1.20～1.70 m 标定范围硬当作循迹视野。超出控制点区域仍是外推。
+光流采用标定覆盖范围，并排除投影黑边；置信度、宽度和停车门限没有放宽。
+外参完成不代表真实跑道检测、GPS 速度环或 1 m 停车已经通过验证。
+`runtime_2023.json` 中的地面与执行器验收标志继续保持未验收。
+
+只要固定安装位置、俯仰/偏航、焦距/对焦、640×480 原始分辨率或裁剪方式变化，
+本外参就必须复核或重做。H65 云台运动后不能沿用某一姿态的地面外参，更不能
+共用 XWF 的矩阵。禁止为了换相机只改 by-id 而继续使用另一个镜头的数值。
+
+## 4. 内参与重现方法
+
+历史 `output/camera_intrinsics.json` 原件未改：15 张，RMS 0.2345 px，
+最差单张 0.3666 px。文件未可靠绑定设备，这些数值**不是新测得的 XWF 内参质量**。
+仅为现有加载器兼容保留相机矩阵等字段，本次原始像素拟合不使用历史畸变参数。
+需要去畸变、三维姿态或模型测距时，应独立核实或重新采集该镜头的内参。
+
+内参标定板：ChArUco 5×7，格长 35 mm、标记长 25 mm、DICT_5X5_100。
+打印 `output/pdf/XT-NetRC_Charuco相机标定板_A4.pdf` 时使用实际大小，核对
+底部 100 mm 标尺。用固定 XWF 在原生分辨率拍摄多个位置、角度的清晰照片，
+再用 `scripts/calibrate_camera_intrinsics.py` 计算；不要覆盖历史原件来冒充新测量。
+
+以下命令从已归档原图重现本次结果，只在 Mac 工程根目录执行：
 
 ```bash
 .venv/bin/python scripts/calibrate_ground_plane.py \
-  --image main/camera_calibration/captures/ground_reference_fixed_h65_150_200_2026-09-06_r2_640x480.png \
+  --image main/camera_calibration/captures/ground_reference_fixed_xwf_120_170_2026-09-07_640x480.jpg \
   --intrinsics main/camera_calibration/output/camera_intrinsics.json \
   --output main/camera_calibration/output/ground_projection.json \
-  --near-m 1.50 --far-m 2.00 --half-width-m 0.25 \
-  --image-points '260,329;386,328;277,307;369,305' \
+  --near-m 1.20 --far-m 1.70 --half-width-m 0.25 \
+  --image-points '166,263;465,265;217,222;427,225' \
   --raw-pixel-homography \
-  --metadata main/camera_calibration/captures/ground_reference_fixed_h65_150_200_2026-09-06_r2_metadata.json \
-  --points-preview main/camera_calibration/output/ground_reference_points_fixed_h65_2026-09-06_preview.png
+  --metadata main/camera_calibration/captures/ground_reference_fixed_xwf_120_170_2026-09-07_metadata.json \
+  --points-preview main/camera_calibration/output/ground_reference_points_fixed_xwf_2026-09-07_preview.png
 
 .venv/bin/python scripts/render_ground_projection_preview.py \
-  --image main/camera_calibration/captures/ground_reference_fixed_h65_150_200_2026-09-06_r2_640x480.png \
+  --image main/camera_calibration/captures/ground_reference_fixed_xwf_120_170_2026-09-07_640x480.jpg \
   --config main/camera_calibration/output/ground_projection.json \
-  --output main/camera_calibration/output/ground_birdseye_preview.jpg \
-  --x-min 1.20 --x-max 2.20 --half-width 0.40 --pixels-per-meter 600
+  --output main/camera_calibration/output/ground_birdseye_fixed_xwf_2026-09-07_preview.jpg \
+  --x-min 1.00 --x-max 1.90 --half-width 0.40 --pixels-per-meter 600
 ```
 
-## 历史文件（不用于当前姿态和摆放）
+## 5. 历史文件
 
-- `output/ground_projection_before_camera_fix_2026-08-31.json`：摄像头加固前。
-- `output/ground_projection_before_distance_correction_2026-09-06.json`：历史加固后
-  `0.70/1.20 m` 配置；本次移动沙包和重新采集后已不适用。
-- `output/ground_projection_before_live_h65_2026-09-06.json`：本轮早期仅沿用旧图像素改为
-  `0.75/1.00 m` 的中间结果，未核实当前实车，已废弃。
-- `output/ground_projection_superseded_h65_first_capture_2026-09-06.json`：H65 第一帧
-  `1.50/2.00 m` 候选；用户要求重做后由当前 r2 新图和新点位替代。
+`ground_projection_before_*.json`、`ground_projection_superseded_*.json` 以及
+H65 1.50/2.00 m 原图、点位与元数据均保留作追溯；旧“fixed_h65”文件名和角色
+文字反映的是当时错误判断，不代表现在允许用于循迹。
+旧通用 `ground_birdseye_preview.jpg` 也是历史预览，当前只看上面的 XWF 专用文件。
 
-更换摄像头、镜头/对焦、安装姿态、分辨率或裁剪方式后，当前投影必须重新标定。
+本次只修改本地标定、记录及相关离线身份断言，不覆盖树莓派原工程，不启动电机，
+不改舵机中点、云台位置或焦距。新参数尚未部署到实车测试目录。

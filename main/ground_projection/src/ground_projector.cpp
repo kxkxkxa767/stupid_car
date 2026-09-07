@@ -102,7 +102,16 @@ namespace {
 
 }  // namespace
 
+void GroundBounds::validate() const {
+    for (double value : {x_min, x_max, y_min, y_max})
+        if (!std::isfinite(value)) throw std::invalid_argument("ground bounds must be finite");
+    if (x_min <= 0 || x_max <= x_min || y_min >= 0 || y_max <= 0 ||
+        x_max > 100 || x_max - x_min > 10 || y_max - y_min > 10)
+        throw std::invalid_argument("invalid or oversized ground bounds");
+}
+
 void GroundProjectionConfig::validate() const {
+    if (calibrated_bounds) calibrated_bounds->validate();
     if (!projection_model.empty() && projection_model != "raw_pixel_homography" &&
         projection_model != "undistorted_pixel_homography") {
         throw std::invalid_argument("unsupported ground projection model");
@@ -144,6 +153,17 @@ GroundProjectionConfig load_ground_projection_json(const std::string& path) {
         config.camera_role = static_cast<std::string>(metadata["camera_role"]);
         config.camera_model = static_cast<std::string>(metadata["camera_model"]);
         config.camera_device_by_id = static_cast<std::string>(metadata["camera_device_by_id"]);
+        const auto bounds = metadata["control_point_extent_m"];
+        if (!bounds.empty()) {
+            const auto number = [&](const char* key) {
+                const auto node = bounds[key];
+                if (!(node.isInt() || node.isReal()))
+                    throw std::invalid_argument(std::string("missing/non-numeric ground bound: ") + key);
+                return static_cast<double>(node);
+            };
+            config.calibrated_bounds = GroundBounds{number("x_min"), number("x_max"),
+                                                    number("y_min"), number("y_max")};
+        }
     }
     config.camera_matrix = read_matrix3x3(file["camera_matrix"], "camera_matrix");
     config.image_to_vehicle_ground = read_matrix3x3(
@@ -166,6 +186,30 @@ GroundProjectionConfig load_ground_projection_json(const std::string& path) {
 GroundProjector::GroundProjector(GroundProjectionConfig config)
     : config_(std::move(config)) {
     config_.validate();
+}
+
+cv::Mat GroundProjector::mask_for_bounds(const GroundBounds& bounds) const {
+    bounds.validate();
+    cv::Mat mask(config_.image_height, config_.image_width, CV_8UC1, cv::Scalar(0));
+    std::vector<cv::Point2f> row;
+    row.reserve(config_.image_width);
+    for (int v = 0; v < config_.image_height; ++v) {
+        row.clear();
+        for (int u = 0; u < config_.image_width; ++u)
+            row.emplace_back(static_cast<float>(u), static_cast<float>(v));
+        try {
+            const auto ground = project(row, mask.size());
+            for (int u = 0; u < config_.image_width; ++u) {
+                const auto& p = ground[u];
+                if (p.x_forward_m >= bounds.x_min && p.x_forward_m <= bounds.x_max &&
+                    p.y_left_m >= bounds.y_min && p.y_left_m <= bounds.y_max)
+                    mask.at<unsigned char>(v,u) = 255;
+            }
+        } catch (const std::runtime_error&) {
+            // A row intersecting a singular projection is deliberately excluded.
+        }
+    }
+    return mask;
 }
 
 std::vector<GroundPoint> GroundProjector::project(

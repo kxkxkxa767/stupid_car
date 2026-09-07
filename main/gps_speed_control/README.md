@@ -5,7 +5,7 @@
 GPS 已纳入根 CMake/CTest；只读监视器复用 `hardware` 的串口适配器。
 速度 PI 已由 `car_runtime` 接入实际命令计算，默认 1 Hz 慢修正、20 Hz 安全检查。
 新入口因 IMU 轴向/偏置未核实，仅使用 GPS 中值/低通估计，不启用加速度预测。
-旧 `xtnetrc_gps_distance_test` 固定 PWM 入口已停用并返回迁移提示。
+旧 `xtnetrc_gps_distance_test` 固定 PWM 入口已停用，2026-09-07 连同迁移提示壳一并移除。
 当前前馈映射、GPS 低速精度仍未验收，不能宣称已能可靠控速或精确停车。
 新使用方法见 [统一框架说明](../car_runtime/README.md)，下方实测属于历史记录。
 

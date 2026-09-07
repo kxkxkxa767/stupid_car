@@ -18,9 +18,10 @@ int main() {
     cv::Mat first(480, 640, CV_8UC3, cv::Scalar(25, 25, 25));
     std::mt19937 generator(42);
     std::uniform_int_distribution<int> x(30, 610);
-    std::uniform_int_distribution<int> y(210, 450);
+    // Populate the full native image, not an ROI tied to a previous camera pose.
+    std::uniform_int_distribution<int> y(10, 477);
     std::uniform_int_distribution<int> color(80, 240);
-    for (int i = 0; i < 900; ++i) {
+    for (int i = 0; i < 2400; ++i) {
         const int value = color(generator);
         cv::circle(first, {x(generator), y(generator)}, 2,
                    cv::Scalar(value, value, value), cv::FILLED);

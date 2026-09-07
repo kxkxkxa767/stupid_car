@@ -23,9 +23,11 @@ public:
                                             const cv::Mat& current_bgr) const;
 
 private:
-    [[nodiscard]] cv::Mat make_ground_mask(cv::Size size) const;
-
     vision::GroundProjector projector_;
+    double near_x_m_{0.50}, far_x_m_{1.25}, half_width_m_{0.32};
+    cv::Size bird_size_;
+    cv::Matx33d image_to_bird_;
+    cv::Mat feature_mask_;
 };
 
 }  // namespace xtnetrc::visual_distance

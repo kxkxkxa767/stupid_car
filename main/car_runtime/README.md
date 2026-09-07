@@ -32,17 +32,17 @@ hardware / ByteSource → WIT 解析 → GpsInput → GPS 中值/低通 → spee
 ## 2. camera 0 到底是什么
 
 `camera(0)` 通常对应 Linux `/dev/video0`，这是枚举号，不是永久的“固定摄像头身份”。
-2026-09-06 r2 标定记录：用户确认的固定画面来自 H65，当时映射到 `/dev/video2`；
-8080 当时显示的是 XWF 的 `/dev/video0`。这不证明历史 camera 0 记录错误，也不代表
-今天仍是同一映射。本轮没有再次读取树莓派的实时设备映射。
+2026-09-06 室内现场纠正：**XWF 是固定循迹镜头，H65 是云台模型识别镜头**。
+此前 H65 r2 的固定镜头身份记录有误，已备份，不再作为当前循迹外参。
+2026-09-07 新角度标定时 XWF → `/dev/video0`、H65 → `/dev/video2`；昨日室内曾相反。
 
 当前标定绑定：
 
 ```text
-/dev/v4l/by-id/usb-H65_USB_CAMERA_H65_USB_CAMERA-video-index0
+/dev/v4l/by-id/usb-XWF_1080P_PC_Camera_XWF_1080P_PC_Camera_240122004-video-index0
 ```
 
-运行时解析此链接并核对实际打开的设备。若 H65 重新枚举到 video0，仍然正常运行，
+运行时解析此链接并核对实际打开的设备。若 XWF 重新枚举到 video0，仍然正常运行，
 不需要修改外参。不会自动使用云台镜头，也不会依次尝试 0/1/2 猜测摄像头。
 现场可只读检查 `ls -l /dev/v4l/by-id/`，结合遮挡固定镜头确认物理身份。
 若设备没有唯一序列号导致 by-id 不唯一，应配置 by-path 并重新确认安装位置。
@@ -78,7 +78,7 @@ hardware / ByteSource → WIT 解析 → GpsInput → GPS 中值/低通 → spee
   **不是使用新外参完成的新测量**；中点仍是整数 72，输出仅限 70～73。
 - `feedforward_pwm=11100` 是历史可起步测试值，**不是已证实的 0.20 m/s 映射**。
   PI ±8 PWM 也只是原模块初值。两个 verified 标志保持 0，必须实测后才能更新。
-- 地面外参只有 1.50～2.00 m 四点拟合；控制路径近端有外推，需实测验证。
+- 地面外参只有 XWF 的 1.20～1.70 m 四点拟合；控制路径近端有外推，需实测验证。
 - GPS 积分门限是估计距离，不是精确的最终停车距离，未补偿滑行。静止噪声仍可能
   使预检失败或提前停车，不能承诺精确 1 m / 3 m。
 
@@ -123,7 +123,7 @@ bash scripts/build_pi_runtime_cross.sh
 ```bash
 ./build/mac-release/xtnetrc_car_runtime \
   --config main/config/runtime_2023.json \
-  --replay-image main/camera_calibration/captures/ground_reference_fixed_h65_150_200_2026-09-06_r2_640x480.png
+  --replay-image main/camera_calibration/captures/ground_reference_fixed_xwf_120_170_2026-09-07_640x480.jpg
 ```
 
 预检未通过返回 3，解析/设备错误返回 2，正常观察/正常行驶限时结束返回 0。
@@ -148,9 +148,9 @@ bash scripts/build_pi_runtime_cross.sh
 
 ## 6. 旧入口迁移与验证范围
 
-- `xtnetrc_lane_follow_test` 是统一运行入口的兼容名称，参数与新入口相同。
+- `xtnetrc_lane_follow_test` 兼容入口已移除，只使用 `xtnetrc_car_runtime`。
 - `xtnetrc_visual_distance_test` 现在只读，移除了固定 PWM 驱动；继续输出 VO 估计。
-- `xtnetrc_gps_distance_test` 现在明确报迁移提示并退出，绝不会给油。
+- `xtnetrc_gps_distance_test` 旧迁移提示入口已移除；历史实现可从 Git 恢复。
 - 旧的 `--steering-check-only`、`--motor-pwm`、`--distance-scale`、`--debug-video`
   不再作为自动行驶入口参数；旧完整实验留在 Git 历史，不应误当新版命令执行。
 - `--save-overlay` 在停车后保存最终叠加图，不把视频编码写盘放入控制线程。
@@ -165,7 +165,16 @@ bash scripts/build_pi_runtime_cross.sh
 Linux 采集适配依据：[V4L2 官方采集示例](https://docs.kernel.org/userspace-api/media/v4l/capture.c.html)、
 [缓冲区与时间戳语义](https://docs.kernel.org/userspace-api/media/v4l/buffer.html)。
 
-## 7. 本轮验证结果（2026-09-06）
+## 7. 验证记录
+
+### 2026-09-07：新外参及入口清理
+
+- Mac 视觉版构建成功，CTest 12/12；无 OpenCV 核心构建成功，CTest 5/5；Python 3/3。
+- Linux ARM64 根工程交叉编译成功，生成 `xtnetrc_car_runtime`；编译产物不上传 Git。
+- 移除旧 GPS 提示壳和重复循迹兼容入口后重新配置、构建并测试，未删除依赖库。
+- XWF 新角度地面外参已更新，历史内参原件不变；新参数未部署，未启动任何实车执行器。
+
+### 2026-09-06：此前框架整合
 
 - Mac Release：12/12 CTest 通过；原 Python 视觉 3/3 通过。
 - 不含 OpenCV 的 `core-only`：5/5 通过。

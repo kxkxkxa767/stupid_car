@@ -98,38 +98,38 @@
   },
   "image_to_vehicle_ground_homography": [
     [
-      0.00026424741292670943,
-      -0.00010360820435973196,
-      -1.4643166525755371
+      0.00016471486457369966,
+      -0.000811492271453402,
+      -0.06934986317785259
     ],
     [
-      0.0019610930998361564,
-      0.000212244696604553,
-      -0.6829660886482565
+      0.0005296580983062723,
+      -1.6731756258497747e-06,
+      -0.17268241705448767
     ],
     [
-      0.0002769141403647516,
-      -0.008564200999142117,
+      0.00023483939984806783,
+      -0.0030105788270775712,
       1.0
     ]
   ],
-  "ground_reference_image": "main/camera_calibration/captures/ground_reference_fixed_xwf_120_170_2026-09-07_640x480.jpg",
+  "ground_reference_image": "main/camera_calibration/captures/ground_reference_fixed_xwf_120_170_2026-09-06_640x480.jpg",
   "image_points_undistorted_px": [
     [
-      166.0,
-      263.0
+      164.0,
+      460.0
     ],
     [
-      465.0,
-      265.0
+      475.0,
+      473.0
     ],
     [
-      217.0,
-      222.0
+      223.0,
+      423.0
     ],
     [
-      427.0,
-      225.0
+      425.0,
+      434.0
     ]
   ],
   "vehicle_points_m": [
@@ -150,7 +150,7 @@
       -0.25
     ]
   ],
-  "calibration_max_error_m": 1.8384398847715033e-07,
+  "calibration_max_error_m": 4.802933475378524e-07,
   "projection_model": "raw_pixel_homography",
   "projection_dist_coeffs": [
     0.0,
@@ -161,52 +161,52 @@
   ],
   "image_points_raw_px": [
     [
-      166.0,
-      263.0
+      164.0,
+      460.0
     ],
     [
-      465.0,
-      265.0
+      475.0,
+      473.0
     ],
     [
-      217.0,
-      222.0
+      223.0,
+      423.0
     ],
     [
-      427.0,
-      225.0
+      425.0,
+      434.0
     ]
   ],
   "calibration_metadata": {
-    "date": "2026-09-07",
+    "date": "2026-09-06",
     "capture_revision": 1,
     "camera_role": "front_fixed",
     "camera_model": "XWF 1080P PC Camera",
     "camera_device_by_id": "/dev/v4l/by-id/usb-XWF_1080P_PC_Camera_XWF_1080P_PC_Camera_240122004-video-index0",
-    "device_at_capture": "/dev/video0",
-    "identity_confirmation": "User previously confirmed the live XWF preview as the fixed lane-following camera and confirmed the adjusted camera was secured before this capture. SSH on 2026-09-07 verified the preview process uses XWF by-id at 640x480. No complete occlusion sequence was recorded.",
+    "device_at_capture": "/dev/video2",
+    "identity_confirmation": "User explicitly confirmed the current 8080 preview as the fixed lane-following camera. SSH inspection verified that mjpg_streamer opened the XWF by-id device at 640x480. A complete occlusion sequence was not captured; do not claim one.",
     "other_camera": {
       "camera_role": "gimbal_object_detection",
       "camera_model": "H65 USB CAMERA",
       "camera_device_by_id": "/dev/v4l/by-id/usb-H65_USB_CAMERA_H65_USB_CAMERA-video-index0",
-      "device_at_capture": "/dev/video2",
-      "purpose": "Model-based obstacle/object recognition; do not reuse fixed-camera ground homography."
+      "device_at_capture": "/dev/video0",
+      "purpose": "Model-based obstacle and other object recognition; must not reuse fixed-camera ground homography."
     },
-    "source_capture": "Native 640x480 JPEG snapshot from verified XWF mjpg_streamer after user secured the new tilt; no resizing, cropping, undistortion or re-encoding.",
-    "source_image_sha256": "204855b3f5286aab387bb68c3f4eb26929102c2e26e925d274a4974e6198a42e",
+    "source_capture": "Original JPEG snapshot from the verified XWF mjpg_streamer service, 640x480, saved without resizing, cropping, undistortion or re-encoding.",
+    "source_image_sha256": "f3f9497820a2309de5ddbf03dae35b3d7de6f483b68cceb62fe14faacd26cad3",
     "coordinate_origin": "rear_axle_center",
-    "point_definition": "Ground-contact vertex shared by the bag face toward the vehicle and the face toward the rectangle interior; not the top corner, silhouette extremum or floor reflection.",
+    "point_definition": "Ground-contact corner joining the bag face toward the vehicle and the face toward the rectangle interior; not the top corner or floor reflection.",
     "point_order": [
       "near_left",
       "near_right",
       "far_left",
       "far_right"
     ],
-    "measurement_source": "User reconfirmed yesterday's dimensions: near=1.20m and far=1.70m from rear axle center; left/right inner corners each 0.25m from centerline.",
-    "pixel_selection_method": "Manual integer-pixel contact-vertex selection from this new image, assisted by color-contour coordinates. Soft bag edges and shadows limit precision.",
+    "measurement_source": "User explicitly updated indoor distances to near=1.20m, far=1.70m from rear axle; left/right inner corners each 0.25m from vehicle centerline.",
+    "pixel_selection_method": "Manual selection from the original image, assisted by color contour coordinates. Near bags show two vertical faces; use their common ground-contact vertex, not the outer silhouette corner.",
     "assumed_pixel_uncertainty_for_sensitivity_px": 3,
-    "pixel_uncertainty_note": "Illustrative sensitivity only, not an independently measured uncertainty bound or confidence interval.",
-    "intrinsics_status": "Historical 2026-08-31 intrinsics retained only for loader compatibility; device association not independently verified; not new XWF intrinsic calibration.",
+    "pixel_uncertainty_note": "Illustrative sensitivity only, not a measured bound. Image is soft and near-right contact is close to the bottom border. Independent measured validation remains required.",
+    "intrinsics_status": "Historical 2026-08-31 intrinsics retained only for loader compatibility; association with XWF not independently verified. These are not newly calibrated XWF intrinsics.",
     "intrinsics_used_for_ground_fit": false,
     "control_point_extent_m": {
       "x_min": 1.2,
@@ -215,7 +215,6 @@
       "y_max": 0.25
     },
     "validation_status": "four_point_fit_only_no_independent_metric_validation",
-    "previous_projection_backup": "main/camera_calibration/output/ground_projection_superseded_xwf_before_tilt_2026-09-07.json",
-    "limitations": "Ground plane only. Pose, focus/lens, 640x480 native resolution and crop must remain unchanged. Outside the control quadrilateral is extrapolation. Lane following, VO, GPS and stopping accuracy require separate verification."
+    "limitations": "Ground plane only. Fixed camera pose, focus/lens, native resolution and crop must remain unchanged. Outside the control-point quadrilateral is extrapolation. This calibration does not prove lane detection, speed control or stopping accuracy."
   }
 }

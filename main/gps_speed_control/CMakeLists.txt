@@ -23,9 +23,6 @@ endif()
 add_executable(xtnetrc_gps_speed_monitor src/monitor.cpp)
 target_link_libraries(xtnetrc_gps_speed_monitor PRIVATE xtnetrc_gps_speed xtnetrc_hardware)
 
-# Compatibility command: old fixed-throttle experiment is retired.
-add_executable(xtnetrc_gps_distance_test src/distance_test.cpp)
-
 include(CTest)
 if(BUILD_TESTING)
     add_executable(xtnetrc_gps_speed_test tests/gps_speed_test.cpp)

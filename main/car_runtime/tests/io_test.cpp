@@ -22,8 +22,9 @@ int main() try {
     check(config.board.steering_center == 72 && !config.actuator_calibration_verified,
           "measured center or unverified status changed");
     const auto calibration = xtnetrc::vision::load_ground_projection_json(config.calibration_path);
-    check(calibration.camera_role == "front_fixed" && calibration.camera_device_by_id.find("H65") != std::string::npos,
-          "calibration device metadata not loaded");
+    check(calibration.camera_role == "front_fixed" && calibration.camera_device_by_id ==
+          "/dev/v4l/by-id/usb-XWF_1080P_PC_Camera_XWF_1080P_PC_Camera_240122004-video-index0",
+          "fixed XWF metadata missing or gimbal calibration selected");
     check(calibration.projection_model == "raw_pixel_homography", "raw projection mode missing");
     {
         // End-to-end: rendered lane -> real OpenCV detector -> metric path ->

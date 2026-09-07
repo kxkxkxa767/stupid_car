@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <utility>
+#include <stdexcept>
 #include <vector>
 
 #include <opencv2/imgproc.hpp>
@@ -13,16 +14,6 @@ namespace xtnetrc::visual_distance {
 namespace {
 
 constexpr double kPixelsPerMetre = 400.0;
-constexpr double kNearXMetres = 0.50;
-constexpr double kFarXMetres = 1.25;
-constexpr double kHalfWidthMetres = 0.32;
-
-cv::Point2f ground_to_image(const cv::Matx33d& inverse,
-                            const double x, const double y) {
-    const cv::Vec3d point = inverse * cv::Vec3d(x, y, 1.0);
-    return {static_cast<float>(point[0] / point[2]),
-            static_cast<float>(point[1] / point[2])};
-}
 
 double median(std::vector<double> values) {
     if (values.empty()) return 0.0;
@@ -33,19 +24,6 @@ double median(std::vector<double> values) {
     return 0.5 * (upper + *std::max_element(values.begin(), middle));
 }
 
-cv::Size bird_size() {
-    return {cvRound(2.0 * kHalfWidthMetres * kPixelsPerMetre),
-            cvRound((kFarXMetres - kNearXMetres) * kPixelsPerMetre)};
-}
-
-cv::Matx33d image_to_bird(
-    const vision::GroundProjectionConfig& config) {
-    const cv::Matx33d ground_to_bird(
-        0.0, kPixelsPerMetre, kHalfWidthMetres * kPixelsPerMetre,
-        -kPixelsPerMetre, 0.0, kFarXMetres * kPixelsPerMetre,
-        0.0, 0.0, 1.0);
-    return ground_to_bird * config.image_to_vehicle_ground;
-}
 
 struct FlowSample {
     cv::Point2f previous;
@@ -56,21 +34,29 @@ struct FlowSample {
 }  // namespace
 
 GroundVisualOdometry::GroundVisualOdometry(vision::GroundProjectionConfig config)
-    : projector_(std::move(config)) {}
-
-cv::Mat GroundVisualOdometry::make_ground_mask(const cv::Size size) const {
-    cv::Mat mask(size, CV_8UC1, cv::Scalar(0));
-    const cv::Matx33d inverse = projector_.config().image_to_vehicle_ground.inv();
-    std::vector<cv::Point> polygon;
-    for (const auto point : {
-             ground_to_image(inverse, kNearXMetres, kHalfWidthMetres),
-             ground_to_image(inverse, kFarXMetres, kHalfWidthMetres),
-             ground_to_image(inverse, kFarXMetres, -kHalfWidthMetres),
-             ground_to_image(inverse, kNearXMetres, -kHalfWidthMetres)}) {
-        polygon.emplace_back(cvRound(point.x), cvRound(point.y));
+    : projector_(std::move(config)) {
+    if (const auto& bounds = projector_.config().calibrated_bounds) {
+        near_x_m_ = bounds->x_min; far_x_m_ = bounds->x_max;
+        half_width_m_ = std::min(-bounds->y_min, bounds->y_max);
     }
-    cv::fillConvexPoly(mask, polygon, cv::Scalar(255));
-    return mask;
+    bird_size_ = {cvRound(2 * half_width_m_ * kPixelsPerMetre),
+                  cvRound((far_x_m_ - near_x_m_) * kPixelsPerMetre)};
+    if (bird_size_.width < 64 || bird_size_.height < 64 ||
+        bird_size_.width > 4096 || bird_size_.height > 4096)
+        throw std::invalid_argument("ground odometry region too small or large");
+    const cv::Matx33d ground_to_bird(
+        0, kPixelsPerMetre, half_width_m_ * kPixelsPerMetre,
+        -kPixelsPerMetre, 0, far_x_m_ * kPixelsPerMetre, 0, 0, 1);
+    image_to_bird_ = ground_to_bird * projector_.config().image_to_vehicle_ground;
+    // Black padding outside the native frame is not usable ground texture.
+    cv::Mat coverage(projector_.config().image_height, projector_.config().image_width,
+                     CV_8UC1, cv::Scalar(255));
+    cv::warpPerspective(coverage, feature_mask_, cv::Mat(image_to_bird_), bird_size_, cv::INTER_NEAREST);
+    cv::erode(feature_mask_, feature_mask_, cv::Mat::ones(23,23,CV_8UC1),
+              {-1,-1}, 1, cv::BORDER_CONSTANT, cv::Scalar(0));
+    cv::Mat interior(bird_size_, CV_8UC1, cv::Scalar(0));
+    cv::rectangle(interior, cv::Rect(14,20,bird_size_.width-28,bird_size_.height-40),cv::Scalar(255),cv::FILLED);
+    cv::bitwise_and(feature_mask_,interior,feature_mask_);
 }
 
 OdometryEstimate GroundVisualOdometry::estimate(
@@ -87,20 +73,16 @@ OdometryEstimate GroundVisualOdometry::estimate(
     cv::cvtColor(previous_bgr, previous_gray, cv::COLOR_BGR2GRAY);
     cv::cvtColor(current_bgr, current_gray, cv::COLOR_BGR2GRAY);
     cv::Mat previous_bird, current_bird;
-    const cv::Size output_size = bird_size();
-    const cv::Mat transform(image_to_bird(projector_.config()));
+    const cv::Size output_size = bird_size_;
+    const cv::Mat transform(image_to_bird_);
     cv::warpPerspective(previous_gray, previous_bird, transform, output_size,
                         cv::INTER_LINEAR);
     cv::warpPerspective(current_gray, current_bird, transform, output_size,
                         cv::INTER_LINEAR);
 
-    cv::Mat feature_mask(output_size, CV_8UC1, cv::Scalar(0));
-    cv::rectangle(feature_mask, cv::Rect(14, 20, output_size.width - 28,
-                                        output_size.height - 40),
-                  cv::Scalar(255), cv::FILLED);
     std::vector<cv::Point2f> previous_points;
     cv::goodFeaturesToTrack(previous_bird, previous_points, 60, 0.015, 9.0,
-                            feature_mask, 5, false, 0.04);
+                            feature_mask_, 5, false, 0.04);
     if (previous_points.size() < 8) return result;
 
     std::vector<cv::Point2f> current_points;
@@ -117,6 +99,10 @@ OdometryEstimate GroundVisualOdometry::estimate(
         if (!forward_status[i] || forward_error[i] > 20.0f) {
             continue;
         }
+        const auto point = current_points[i];
+        if (!std::isfinite(point.x) || !std::isfinite(point.y) || point.x < 0 || point.y < 0 ||
+            point.x >= feature_mask_.cols || point.y >= feature_mask_.rows ||
+            !feature_mask_.at<unsigned char>(static_cast<int>(point.y),static_cast<int>(point.x))) continue;
         const double flow_x = current_points[i].x - previous_points[i].x;
         const double flow_y = current_points[i].y - previous_points[i].y;
         if (std::isfinite(flow_x) && std::isfinite(flow_y)) {
@@ -159,7 +145,7 @@ OdometryEstimate GroundVisualOdometry::estimate(
     double mean_ground_x = 0.0;
     double mean_lateral_displacement = 0.0;
     for (const auto& sample : inliers) {
-        mean_ground_x += kFarXMetres - sample.previous.y / kPixelsPerMetre;
+        mean_ground_x += far_x_m_ - sample.previous.y / kPixelsPerMetre;
         mean_lateral_displacement += -sample.flow_x / kPixelsPerMetre;
     }
     mean_ground_x /= static_cast<double>(inliers.size());
@@ -167,7 +153,7 @@ OdometryEstimate GroundVisualOdometry::estimate(
     double numerator = 0.0;
     double denominator = 0.0;
     for (const auto& sample : inliers) {
-        const double ground_x = kFarXMetres - sample.previous.y / kPixelsPerMetre;
+        const double ground_x = far_x_m_ - sample.previous.y / kPixelsPerMetre;
         const double centered_x = ground_x - mean_ground_x;
         const double lateral_displacement = -sample.flow_x / kPixelsPerMetre;
         numerator += centered_x *

@@ -46,7 +46,11 @@ double total_weight(const std::vector<Candidate>& candidates) {
 
 LaneCorridorDetector::LaneCorridorDetector(
     vision::GroundProjectionConfig calibration)
-    : projector_(std::move(calibration)) {}
+    : projector_(std::move(calibration)) {
+    // Retain the existing metric search range; calibration extent is NOT a
+    // hard lane crop. Any part outside the control rectangle is extrapolation.
+    roi_ = projector_.mask_for_bounds({0.55, 2.20, -0.75, 0.75});
+}
 
 void LaneCorridorDetector::reset() noexcept {
     has_previous_ = false;
@@ -71,15 +75,7 @@ LaneCorridorResult LaneCorridorDetector::process(const cv::Mat& frame) {
     // CLAHE 配合较宽的 Canny 迟滞阈值，兼顾夜间参考和白天正式画面。
     cv::Canny(enhanced, edges, 15.0, 45.0, 3);
 
-    cv::Mat roi = cv::Mat::zeros(edges.size(), CV_8UC1);
-    const std::vector<cv::Point> polygon{
-        {5, static_cast<int>(frame.rows * 0.68)},
-        {20, static_cast<int>(frame.rows * 0.28)},
-        {frame.cols - 20, static_cast<int>(frame.rows * 0.28)},
-        {frame.cols - 5, static_cast<int>(frame.rows * 0.68)},
-    };
-    cv::fillConvexPoly(roi, polygon, cv::Scalar(255));
-    cv::bitwise_and(edges, roi, edges);
+    cv::bitwise_and(edges, roi_, edges);
 
     std::vector<cv::Vec4i> segments;
     cv::HoughLinesP(edges, segments, 1.0, CV_PI / 360.0, 14, 16.0, 10.0);

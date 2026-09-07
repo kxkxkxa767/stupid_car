@@ -8,7 +8,9 @@
 
 先阅读 [统一运行框架与移植说明](main/car_runtime/README.md)。它包含相机身份绑定、
 显式降级运行、配置、独立停车保护、旧命令迁移和完整测试命令。
-固定相机以 H65 by-id 为准，不能把历史 camera 0 永久等同于固定镜头。
+固定循迹相机以 **XWF by-id** 为准；**H65 是云台目标识别镜头**，两者不能共用
+地面外参。身份及新四点标定见 [相机标定说明](main/camera_calibration/README.md)。
+不能把历史 camera 0 永久等同于固定镜头。
 只在本地编译，部署到 `/home/5G/xtnetrc_staging/`；不得覆盖原工程 `/home/5G/5G`。
 
 ## 已确认的原车信息
